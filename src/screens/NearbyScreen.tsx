@@ -102,8 +102,8 @@ export const NearbyScreen = () => {
 
 			{/* Report FAB */}
 			<FAB
-				icon="plus"
-				label="Report"
+				icon="fire"
+				label="Raise a flare"
 				style={styles.fab}
 				color="#FFFFFF"
 				onPress={() => navigation.navigate("ReportStep1")}
