@@ -5,6 +5,7 @@ import { Button, Divider, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { ProgressBar } from "../components/ProgressBar";
+import { useEmergency } from "../context/EmergencyContext";
 import { useFlares, useSaveFlare } from "../hooks/useFlares";
 import type {
 	FlareDetailNavProp,
@@ -43,6 +44,7 @@ export const FlareDetailScreen = () => {
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
 	const saveFlare = useSaveFlare();
+	const { activate: activateEmergency } = useEmergency();
 
 	const flare = flares.find((f) => f.id === route.params.flareId);
 
@@ -136,6 +138,28 @@ export const FlareDetailScreen = () => {
 						))}
 					</View>
 				)}
+
+				{/* Emergency entry from flare */}
+				<Button
+					mode="contained"
+					buttonColor="#D32F2F"
+					textColor="#FFFFFF"
+					icon="alert-circle"
+					style={styles.emergencyButton}
+					labelStyle={styles.buttonLabel}
+					contentStyle={styles.buttonContent}
+					onPress={() =>
+						activateEmergency({
+							source: "flare",
+							flare,
+							category: flare.category,
+							location: flare.location,
+							building: flare.building,
+						})
+					}
+				>
+					Enter emergency mode
+				</Button>
 
 				{/* Actions row */}
 				<Divider style={styles.divider} />
@@ -240,6 +264,9 @@ const styles = StyleSheet.create({
 	outlineButton: {
 		borderRadius: components.cardRadius,
 		borderColor: colors.burgundy,
+	},
+	emergencyButton: {
+		borderRadius: components.cardRadius,
 	},
 	buttonContent: {
 		minHeight: components.touchTarget,

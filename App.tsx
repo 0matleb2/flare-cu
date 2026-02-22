@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-
+import {
+	EmergencyProvider,
+	useEmergency,
+} from "./src/context/EmergencyContext";
 import type {
 	AuthStackParamList,
 	MainTabParamList,
@@ -16,7 +19,8 @@ import type {
 import { ActionPlanScreen } from "./src/screens/ActionPlanScreen";
 // Screens – Auth
 import { CreateAccountScreen } from "./src/screens/CreateAccountScreen";
-import { EmergencyScreen } from "./src/screens/EmergencyScreen";
+// Emergency
+import { EmergencyShell } from "./src/screens/EmergencyShell";
 import { FlareDetailScreen } from "./src/screens/FlareDetailScreen";
 import { HelpScreen } from "./src/screens/HelpScreen";
 import { NearbyScreen } from "./src/screens/NearbyScreen";
@@ -24,9 +28,11 @@ import { PreferencesScreen } from "./src/screens/PreferencesScreen";
 import { ReportStep1Screen } from "./src/screens/ReportStep1Screen";
 import { ReportStep2Screen } from "./src/screens/ReportStep2Screen";
 import { ReportStep3Screen } from "./src/screens/ReportStep3Screen";
+
 // Screens – Route stack
 import { RouteResultsScreen } from "./src/screens/RouteResultsScreen";
 import { RouteSetupScreen } from "./src/screens/RouteSetupScreen";
+
 // Screens – Tabs
 import { SavedScreen } from "./src/screens/SavedScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -48,7 +54,6 @@ function NearbyStackNavigator() {
 		<NearbyStack.Navigator screenOptions={{ headerShown: false }}>
 			<NearbyStack.Screen name="NearbyFeed" component={NearbyScreen} />
 			<NearbyStack.Screen name="FlareDetail" component={FlareDetailScreen} />
-			<NearbyStack.Screen name="EmergencyUX" component={EmergencyScreen} />
 			<NearbyStack.Screen name="ReportStep1" component={ReportStep1Screen} />
 			<NearbyStack.Screen name="ReportStep2" component={ReportStep2Screen} />
 			<NearbyStack.Screen name="ReportStep3" component={ReportStep3Screen} />
@@ -118,22 +123,36 @@ function AuthFlow({ onComplete }: { onComplete: () => void }) {
 	);
 }
 
+// ── App content (reads EmergencyContext) ─────────────────────
+
+function AppContent() {
+	const [isOnboarded, setIsOnboarded] = useState(false);
+	const { isActive: isEmergencyActive } = useEmergency();
+
+	if (!isOnboarded) {
+		return <AuthFlow onComplete={() => setIsOnboarded(true)} />;
+	}
+
+	// Emergency mode replaces the entire main app
+	if (isEmergencyActive) {
+		return <EmergencyShell />;
+	}
+
+	return <MainTabs onLogout={() => setIsOnboarded(false)} />;
+}
+
 // ── Root App ────────────────────────────────────────────────
 
 export default function App() {
-	const [isOnboarded, setIsOnboarded] = useState(false);
-
 	return (
 		<SafeAreaProvider>
 			<QueryClientProvider client={queryClient}>
 				<PaperProvider theme={theme}>
-					<NavigationContainer>
-						{isOnboarded ? (
-							<MainTabs onLogout={() => setIsOnboarded(false)} />
-						) : (
-							<AuthFlow onComplete={() => setIsOnboarded(true)} />
-						)}
-					</NavigationContainer>
+					<EmergencyProvider>
+						<NavigationContainer>
+							<AppContent />
+						</NavigationContainer>
+					</EmergencyProvider>
 				</PaperProvider>
 			</QueryClientProvider>
 		</SafeAreaProvider>

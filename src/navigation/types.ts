@@ -16,8 +16,6 @@ export type AuthStackParamList = {
 export type NearbyStackParamList = {
 	NearbyFeed: undefined;
 	FlareDetail: { flareId: string };
-	EmergencyUX: { flareId?: string };
-	ZonePrompt: { flareId: string };
 	ReportStep1: undefined;
 	ReportStep2: { category: string };
 	ReportStep3: { category: string; building: string; entrance?: string };
@@ -75,10 +73,6 @@ export type NearbyFeedNavProp = CompositeNavigationProp<
 export type FlareDetailNavProp = NativeStackNavigationProp<
 	NearbyStackParamList,
 	"FlareDetail"
->;
-export type EmergencyUXNavProp = NativeStackNavigationProp<
-	NearbyStackParamList,
-	"EmergencyUX"
 >;
 export type ReportStep1NavProp = NativeStackNavigationProp<
 	NearbyStackParamList,

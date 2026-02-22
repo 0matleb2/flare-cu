@@ -1,5 +1,4 @@
 import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { Button, FAB, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,7 +6,7 @@ import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { StatusRow } from "../components/StatusRow";
-import { ZonePromptModal } from "../components/ZonePromptModal";
+import { useEmergency } from "../context/EmergencyContext";
 import { useFlares } from "../hooks/useFlares";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
@@ -19,13 +18,11 @@ export const NearbyScreen = () => {
 	const { data: prefs } = usePreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const insets = useSafeAreaInsets();
-
-	const [zonePromptVisible, setZonePromptVisible] = useState(false);
-	const [zoneFlareId, _setZoneFlareId] = useState<string | null>(null);
+	const { activate } = useEmergency();
 
 	const isOnline = prefs?.offlineCaching !== false;
 
-	// Filter: hide resolved if not relevant, hide unconfirmed in low intensity
+	// Filter: hide unconfirmed in low intensity
 	const feedFlares = flares.filter((f) => {
 		if (prefs?.alertIntensity === "low" && f.credibility === "reported")
 			return false;
@@ -57,7 +54,7 @@ export const NearbyScreen = () => {
 						compact
 						labelStyle={styles.emergencyLabel}
 						style={styles.emergencyButton}
-						onPress={() => navigation.navigate("EmergencyUX", {})}
+						onPress={() => activate({ source: "manual" })}
 					>
 						🚨 Emergency
 					</Button>
@@ -74,7 +71,7 @@ export const NearbyScreen = () => {
 				<OfflineBanner variant="offline" lastSyncTime={syncTimeStr} />
 			)}
 
-			{/* Feed — no filter pills, just the list */}
+			{/* Feed */}
 			<FlatList
 				data={feedFlares}
 				renderItem={renderItem}
@@ -94,19 +91,6 @@ export const NearbyScreen = () => {
 				color="#FFFFFF"
 				onPress={() => navigation.navigate("ReportStep1")}
 				customSize={48}
-			/>
-
-			{/* Zone prompt */}
-			<ZonePromptModal
-				visible={zonePromptVisible}
-				onViewGuidance={() => {
-					setZonePromptVisible(false);
-					if (zoneFlareId) {
-						navigation.navigate("EmergencyUX", { flareId: zoneFlareId });
-					}
-				}}
-				onDismiss={() => setZonePromptVisible(false)}
-				onRemindLater={() => setZonePromptVisible(false)}
 			/>
 		</View>
 	);
