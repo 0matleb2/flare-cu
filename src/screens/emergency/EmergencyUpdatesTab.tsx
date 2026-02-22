@@ -25,6 +25,7 @@ export const EmergencyUpdatesTab = () => {
 	const lowStim = useLowStim();
 	const [lastChecked, setLastChecked] = useState<string | null>(null);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [nearbyExpanded, setNearbyExpanded] = useState(false);
 
 	const isOnline = prefs?.offlineCaching !== false;
 
@@ -147,35 +148,55 @@ export const EmergencyUpdatesTab = () => {
 				</View>
 			)}
 
-			{/* Active flares nearby */}
+			{/* Active flares nearby — collapsed by default */}
 			<View style={styles.nearbySection}>
-				<Text style={styles.cardTitle}>Active flares nearby</Text>
-				{flares
-					.filter((f: Flare) => f.credibility !== "resolved")
-					.slice(0, 5)
-					.map((f: Flare) => {
-						const isExpanded = expandedId === f.id;
-						return (
-							<TouchableOpacity
-								key={f.id}
-								style={[styles.miniCard, isExpanded && styles.miniCardExpanded]}
-								activeOpacity={0.7}
-								onPress={() => toggleExpand(f.id)}
-							>
-								<View style={styles.miniRow}>
-									<CredibilityChip level={f.credibility} lowStim={lowStim} />
-									<Text style={styles.timestamp}>{timeAgo(f.lastUpdated)}</Text>
-								</View>
-								<Text
-									style={styles.miniSummary}
-									numberOfLines={isExpanded ? undefined : 1}
+				<TouchableOpacity
+					style={styles.nearbySectionHeader}
+					onPress={() => setNearbyExpanded((p) => !p)}
+					activeOpacity={0.7}
+				>
+					<Text style={styles.cardTitle}>Active flares nearby</Text>
+					<View style={styles.nearbyHeaderRight}>
+						<Text style={styles.nearbyCount}>
+							{flares.filter((f: Flare) => f.credibility !== "resolved").length}{" "}
+							active
+						</Text>
+						<Text style={styles.nearbyArrow}>{nearbyExpanded ? "▾" : "▸"}</Text>
+					</View>
+				</TouchableOpacity>
+
+				{nearbyExpanded &&
+					flares
+						.filter((f: Flare) => f.credibility !== "resolved")
+						.slice(0, 5)
+						.map((f: Flare) => {
+							const isExpanded = expandedId === f.id;
+							return (
+								<TouchableOpacity
+									key={f.id}
+									style={[
+										styles.miniCard,
+										isExpanded && styles.miniCardExpanded,
+									]}
+									activeOpacity={0.7}
+									onPress={() => toggleExpand(f.id)}
 								>
-									{f.summary}
-								</Text>
-								{isExpanded && renderFlareDetail(f)}
-							</TouchableOpacity>
-						);
-					})}
+									<View style={styles.miniRow}>
+										<CredibilityChip level={f.credibility} lowStim={lowStim} />
+										<Text style={styles.timestamp}>
+											{timeAgo(f.lastUpdated)}
+										</Text>
+									</View>
+									<Text
+										style={styles.miniSummary}
+										numberOfLines={isExpanded ? undefined : 1}
+									>
+										{f.summary}
+									</Text>
+									{isExpanded && renderFlareDetail(f)}
+								</TouchableOpacity>
+							);
+						})}
 			</View>
 		</ScrollView>
 	);
@@ -330,6 +351,29 @@ const styles = StyleSheet.create({
 
 	// Nearby
 	nearbySection: { gap: spacing.sm },
+	nearbySectionHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		backgroundColor: colors.surface,
+		borderRadius: components.cardRadius,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
+		padding: components.cardPadding,
+	},
+	nearbyHeaderRight: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.xs,
+	},
+	nearbyCount: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+	},
+	nearbyArrow: {
+		fontSize: 16,
+		color: colors.textDisabled,
+	},
 	miniCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
