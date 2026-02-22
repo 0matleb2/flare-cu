@@ -1,4 +1,4 @@
-import { MD3DarkTheme, MD3LightTheme } from "react-native-paper";
+import { MD3LightTheme as DefaultTheme } from "react-native-paper";
 
 // ── Spacing tokens (use only these values) ──────────────────
 export const spacing = {
@@ -20,24 +20,8 @@ export const typography = {
 	button: { fontSize: 14, fontWeight: "600" as const },
 } as const;
 
-// ── Component style constants ───────────────────────────────
-export const components = {
-	cardRadius: 12,
-	cardBorderWidth: 1,
-	chipRadius: 999,
-	chipPaddingV: 6,
-	chipPaddingH: 10,
-	touchTarget: 44,
-	screenPaddingH: 16,
-	cardPadding: 12,
-	cardGap: 12,
-} as const;
-
-// ── Color types ─────────────────────────────────────────────
-export type AppColors = Record<keyof typeof lightColors, string>;
-
-// ── Light palette ───────────────────────────────────────────
-export const lightColors = {
+// ── Extended color palette ──────────────────────────────────
+export const colors = {
 	// Core neutrals
 	background: "#F8F9FB",
 	surface: "#FFFFFF",
@@ -74,73 +58,48 @@ export const lightColors = {
 	locationBorder: "#BFDBFE",
 } as const;
 
-// ── Dark palette ────────────────────────────────────────────
-export const darkColors: AppColors = {
-	// Core neutrals
-	background: "#0F1117",
-	surface: "#1A1D27",
-	border: "#2D3140",
-	textPrimary: "#F3F4F6",
-	textSecondary: "#9CA3AF",
-	textDisabled: "#6B7280",
-
-	// Concordia accent
-	burgundy: "#C4497A",
-	burgundyDark: "#7A003C",
-	burgundyLight: "#2D1620",
-
-	// Status (calm, not alarmist)
-	statusSafe: "#66BB6A",
-	statusCaution: "#FFB74D",
-	statusHighTension: "#EF5350",
-	statusInfo: "#64B5F6",
-
-	// Credibility chip colors
-	credReported: "#FFB74D",
-	credConfirmed: "#64B5F6",
-	credVerified: "#66BB6A",
-	credResolved: "#6B7280",
-
-	// Offline banner
-	offlineBg: "#2D1A0F",
-	offlineText: "#FFB74D",
-	offlineBorder: "#5C3A1A",
-
-	// Location off banner
-	locationBg: "#0F1A2E",
-	locationText: "#64B5F6",
-	locationBorder: "#1A3050",
+// ── Component style constants ───────────────────────────────
+export const components = {
+	cardRadius: 12,
+	cardBorderWidth: 1,
+	chipRadius: 999,
+	chipPaddingV: 6,
+	chipPaddingH: 10,
+	touchTarget: 44,
+	screenPaddingH: 16,
+	cardPadding: 12,
+	cardGap: 12,
 } as const;
 
-// ── Default export (light, for backwards compat) ────────────
-export const colors = lightColors;
+// ── React Native Paper theme override ───────────────────────
+export const theme = {
+	...DefaultTheme,
+	colors: {
+		...DefaultTheme.colors,
+		// Primary brand
+		primary: colors.burgundy,
+		onPrimary: "#FFFFFF",
 
-// ── React Native Paper theme overrides ──────────────────────
-function makeTheme(base: typeof MD3LightTheme, c: AppColors) {
-	return {
-		...base,
-		colors: {
-			...base.colors,
-			primary: c.burgundy,
-			onPrimary: "#FFFFFF",
-			secondary: c.statusInfo,
-			onSecondary: "#FFFFFF",
-			background: c.background,
-			surface: c.surface,
-			onSurface: c.textPrimary,
-			onSurfaceVariant: c.textSecondary,
-			error: c.statusHighTension,
-			onError: "#FFFFFF",
-			outline: c.border,
-			outlineVariant: c.border,
-			surfaceVariant: c.burgundyLight,
-			surfaceDisabled: c.background,
-		},
-	};
-}
+		// Secondary (use info blue as secondary accent)
+		secondary: colors.statusInfo,
+		onSecondary: "#FFFFFF",
 
-export const lightTheme = makeTheme(MD3LightTheme, lightColors);
-export const darkTheme = makeTheme(MD3DarkTheme, darkColors);
+		// Backgrounds & surfaces
+		background: colors.background,
+		surface: colors.surface,
+		onSurface: colors.textPrimary,
+		onSurfaceVariant: colors.textSecondary,
 
-// Legacy export
-export const theme = lightTheme;
+		// Error
+		error: colors.statusHighTension,
+		onError: "#FFFFFF",
+
+		// Outlines
+		outline: colors.border,
+		outlineVariant: colors.border,
+
+		// Elevation / surface variants
+		surfaceVariant: colors.burgundyLight,
+		surfaceDisabled: colors.background,
+	},
+};

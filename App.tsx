@@ -9,7 +9,7 @@ import {
 	EmergencyProvider,
 	useEmergency,
 } from "./src/context/EmergencyContext";
-import { ThemeProvider, useAppTheme } from "./src/context/ThemeContext";
+
 import type {
 	AuthStackParamList,
 	MainTabParamList,
@@ -39,7 +39,7 @@ import { SavedScreen } from "./src/screens/SavedScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 
-import { darkTheme, lightTheme } from "./src/theme";
+import { colors, theme } from "./src/theme";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -75,8 +75,6 @@ function RouteStackNavigator() {
 }
 
 function MainTabs({ onLogout }: { onLogout: () => void }) {
-	const { colors, isDark } = useAppTheme();
-
 	return (
 		<Tab.Navigator
 			screenOptions={{
@@ -173,28 +171,17 @@ function AppContent() {
 
 // ── Root App ────────────────────────────────────────────────
 
-function AppShell() {
-	const { isDark } = useAppTheme();
-	const paperTheme = isDark ? darkTheme : lightTheme;
-
-	return (
-		<PaperProvider theme={paperTheme}>
-			<EmergencyProvider>
-				<NavigationContainer>
-					<AppContent />
-				</NavigationContainer>
-			</EmergencyProvider>
-		</PaperProvider>
-	);
-}
-
 export default function App() {
 	return (
 		<SafeAreaProvider>
 			<QueryClientProvider client={queryClient}>
-				<ThemeProvider>
-					<AppShell />
-				</ThemeProvider>
+				<PaperProvider theme={theme}>
+					<EmergencyProvider>
+						<NavigationContainer>
+							<AppContent />
+						</NavigationContainer>
+					</EmergencyProvider>
+				</PaperProvider>
 			</QueryClientProvider>
 		</SafeAreaProvider>
 	);
