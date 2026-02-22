@@ -130,6 +130,13 @@ export const ReportStep3Screen = () => {
 			</View>
 
 			<View style={styles.content}>
+				{/* Progress bar */}
+				<View style={styles.progressRow}>
+					<View style={[styles.progressSegment, styles.progressDone]} />
+					<View style={[styles.progressSegment, styles.progressDone]} />
+					<View style={[styles.progressSegment, styles.progressCurrent]} />
+				</View>
+
 				<Text style={styles.title}>Add a note</Text>
 				<Text style={styles.step}>Step 3 of 3 — Optional</Text>
 
@@ -187,6 +194,23 @@ const styles = StyleSheet.create({
 	step: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
+	},
+	progressRow: {
+		flexDirection: "row",
+		gap: 4,
+	},
+	progressSegment: {
+		flex: 1,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: colors.border,
+	},
+	progressDone: {
+		backgroundColor: colors.burgundy,
+	},
+	progressCurrent: {
+		backgroundColor: colors.burgundy,
+		opacity: 0.5,
 	},
 	input: {
 		backgroundColor: colors.surface,

@@ -38,7 +38,14 @@ export const ReportStep1Screen = () => {
 			</View>
 
 			<View style={styles.content}>
-				<Text style={styles.title}>Report a flare</Text>
+				{/* Progress bar */}
+				<View style={styles.progressRow}>
+					<View style={[styles.progressSegment, styles.progressCurrent]} />
+					<View style={styles.progressSegment} />
+					<View style={styles.progressSegment} />
+				</View>
+
+				<Text style={styles.title}>Raise a flare</Text>
 				<Text style={styles.step}>Step 1 of 3 — Category</Text>
 
 				<View style={styles.tiles}>
@@ -81,6 +88,20 @@ const styles = StyleSheet.create({
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
 		marginBottom: spacing.md,
+	},
+	progressRow: {
+		flexDirection: "row",
+		gap: 4,
+	},
+	progressSegment: {
+		flex: 1,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: colors.border,
+	},
+	progressCurrent: {
+		backgroundColor: colors.burgundy,
+		opacity: 0.5,
 	},
 	tiles: {
 		gap: spacing.md,
