@@ -1,13 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import {
-	Button,
-	Divider,
-	SegmentedButtons,
-	Switch,
-	Text,
-} from "react-native-paper";
+import { Button, Divider, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
 	usePreferences,
@@ -17,35 +11,29 @@ import {
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
-interface SettingsScreenProps {
+export interface SettingsScreenProps {
 	onLogout?: () => void;
 }
 
 export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const insets = useSafeAreaInsets();
-	const navigation = useNavigation<NearbyFeedNavProp>();
 	const { data: prefs } = usePreferences();
-	const updatePrefs = useUpdatePreferences();
+	const updatePref = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
+	const navigation = useNavigation<NearbyFeedNavProp>();
 
-	const [alertIntensity, setAlertIntensity] = useState("medium");
-	const [notifRadius, setNotifRadius] = useState("near_me");
-	const [mobilityFriendly, setMobilityFriendly] = useState(false);
-	const [lowStimulation, setLowStimulation] = useState(false);
-	const [offlineCaching, setOfflineCaching] = useState(true);
+	// Local state mirroring prefs
+	const [alertHigh, setAlertHigh] = useState(
+		prefs?.alertIntensity === "medium",
+	);
+	const [mobilityFriendly, setMobilityFriendly] = useState(
+		prefs?.mobilityFriendly ?? false,
+	);
+	const [lowStim, setLowStim] = useState(prefs?.lowStimulation ?? false);
+	const [offlineMode, setOfflineMode] = useState(false);
 
-	useEffect(() => {
-		if (prefs) {
-			setAlertIntensity(prefs.alertIntensity);
-			setNotifRadius(prefs.notificationRadius);
-			setMobilityFriendly(prefs.mobilityFriendly);
-			setLowStimulation(prefs.lowStimulation);
-			setOfflineCaching(prefs.offlineCaching);
-		}
-	}, [prefs]);
-
-	const handleUpdate = (key: string, value: unknown) => {
-		updatePrefs.mutate({ [key]: value });
+	const handleUpdate = (update: Record<string, unknown>) => {
+		updatePref.mutate(update);
 	};
 
 	return (
@@ -53,154 +41,147 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 			<Text style={styles.title}>Settings</Text>
 
 			<ScrollView contentContainerStyle={styles.content}>
-				{/* Alert intensity */}
-				<View style={styles.section}>
-					<Text style={styles.label}>Alert intensity</Text>
-					<Text style={styles.hint}>
-						Low: hides unconfirmed flares · Medium: shows all
-					</Text>
-					<SegmentedButtons
-						value={alertIntensity}
+				{/* ══════════ Preferences ══════════ */}
+				<Text style={styles.groupTitle}>Preferences</Text>
+
+				{/* Alert intensity toggle */}
+				<View style={styles.row}>
+					<View style={styles.rowText}>
+						<Text style={styles.label}>Alert intensity</Text>
+						<Text style={styles.hint}>
+							{alertHigh
+								? "High — shows all flares including unconfirmed"
+								: "Low — hides unconfirmed flares for less noise"}
+						</Text>
+					</View>
+					<Switch
+						value={alertHigh}
 						onValueChange={(v) => {
-							setAlertIntensity(v);
-							handleUpdate("alertIntensity", v);
+							setAlertHigh(v);
+							handleUpdate({ alertIntensity: v ? "medium" : "low" });
 						}}
-						buttons={[
-							{ value: "low", label: "Low" },
-							{ value: "medium", label: "Medium" },
-						]}
-						style={styles.segmented}
+						color={colors.burgundy}
+					/>
+				</View>
+
+				{/* Mobility-friendly */}
+				<View style={styles.row}>
+					<View style={styles.rowText}>
+						<Text style={styles.label}>Accessibility</Text>
+						<Text style={styles.hint}>
+							Accessible routes appear first in Route tab
+						</Text>
+					</View>
+					<Switch
+						value={mobilityFriendly}
+						onValueChange={(v) => {
+							setMobilityFriendly(v);
+							handleUpdate({ mobilityFriendly: v });
+						}}
+						color={colors.burgundy}
+					/>
+				</View>
+
+				{/* Low stimulation */}
+				<View style={styles.row}>
+					<View style={styles.rowText}>
+						<Text style={styles.label}>Low stimulation</Text>
+						<Text style={styles.hint}>
+							Simplifies alerts, reduces animations and visual noise
+						</Text>
+					</View>
+					<Switch
+						value={lowStim}
+						onValueChange={(v) => {
+							setLowStim(v);
+							handleUpdate({ lowStimulation: v });
+						}}
+						color={colors.burgundy}
 					/>
 				</View>
 
 				<Divider style={styles.divider} />
 
-				{/* Notification radius */}
-				<View style={styles.section}>
-					<Text style={styles.label}>Notification radius</Text>
-					<Text style={styles.hint}>
-						Near me: immediate area · SGW wide: all campus flares
-					</Text>
-					<SegmentedButtons
-						value={notifRadius}
+				{/* ══════════ Simulation ══════════ */}
+				<Text style={styles.groupTitle}>Developer</Text>
+
+				<View style={styles.row}>
+					<View style={styles.rowText}>
+						<Text style={styles.label}>Offline mode</Text>
+						<Text style={styles.hint}>
+							Simulates offline mode. Feed shows cached data.
+						</Text>
+					</View>
+					<Switch
+						value={offlineMode}
 						onValueChange={(v) => {
-							setNotifRadius(v);
-							handleUpdate("notificationRadius", v);
+							setOfflineMode(v);
+							handleUpdate({ offlineCaching: !v });
 						}}
-						buttons={[
-							{ value: "near_me", label: "Near me" },
-							{ value: "sgw_wide", label: "SGW wide" },
-						]}
-						style={styles.segmented}
+						color={colors.statusCaution}
 					/>
 				</View>
 
 				<Divider style={styles.divider} />
 
-				{/* Toggles */}
-				<View style={styles.toggleSection}>
-					<View style={styles.row}>
-						<View style={styles.toggleText}>
-							<Text style={styles.label}>Mobility-friendly guidance</Text>
-							<Text style={styles.hint}>
-								Accessible routes appear first in Route tab
-							</Text>
-						</View>
-						<Switch
-							value={mobilityFriendly}
-							onValueChange={(v) => {
-								setMobilityFriendly(v);
-								handleUpdate("mobilityFriendly", v);
-							}}
-							color={colors.burgundy}
-						/>
-					</View>
+				{/* ══════════ Support ══════════ */}
+				<Text style={styles.groupTitle}>Support</Text>
 
-					<View style={styles.row}>
-						<View style={styles.toggleText}>
-							<Text style={styles.label}>Low stimulation mode</Text>
-							<Text style={styles.hint}>
-								Simplifies alerts and reduces motion
-							</Text>
-						</View>
-						<Switch
-							value={lowStimulation}
-							onValueChange={(v) => {
-								setLowStimulation(v);
-								handleUpdate("lowStimulation", v);
-							}}
-							color={colors.burgundy}
-						/>
-					</View>
-				</View>
-
-				<Divider style={styles.divider} />
-
-				{/* Offline simulator */}
-				<View style={styles.section}>
-					<Text style={styles.label}>Offline simulator</Text>
-					<Text style={styles.hint}>
-						Simulates offline mode for testing. Feed shows cached data.
-					</Text>
-					<Button
-						mode={offlineCaching ? "outlined" : "contained"}
-						onPress={() => {
-							const newVal = !offlineCaching;
-							setOfflineCaching(newVal);
-							handleUpdate("offlineCaching", newVal);
-						}}
-						buttonColor={offlineCaching ? undefined : colors.statusCaution}
-						textColor={offlineCaching ? colors.textPrimary : "#FFFFFF"}
-						style={styles.actionButton}
-						labelStyle={styles.actionLabel}
-						contentStyle={styles.actionContent}
-					>
-						{offlineCaching ? "Go offline" : "Go online"}
-					</Button>
-				</View>
-
-				<Divider style={styles.divider} />
-
-				{/* Help */}
 				<Button
 					mode="outlined"
 					icon="help-circle-outline"
 					onPress={() => navigation.navigate("NearbyTab", { screen: "Help" })}
 					textColor={colors.textPrimary}
-					style={styles.actionButton}
-					labelStyle={styles.actionLabel}
-					contentStyle={styles.actionContent}
+					style={styles.supportButton}
+					labelStyle={styles.supportLabel}
+					contentStyle={styles.supportContent}
 				>
-					Help & Documentation
+					Help center
 				</Button>
 
-				{/* Reset */}
 				<Button
 					mode="outlined"
+					icon="refresh"
 					onPress={() => resetPrefs.mutate(undefined)}
 					textColor={colors.textSecondary}
-					style={styles.actionButton}
-					labelStyle={styles.actionLabel}
+					style={styles.supportButton}
+					labelStyle={styles.supportLabel}
+					contentStyle={styles.supportContent}
 				>
 					Reset to defaults
 				</Button>
 
-				{/* Logout */}
+				<Divider style={styles.divider} />
+
+				{/* ══════════ Account ══════════ */}
 				{onLogout && (
-					<View style={styles.logoutContainer}>
+					<>
 						<Button
 							mode="contained"
 							onPress={onLogout}
 							buttonColor={colors.burgundy}
 							textColor="#FFFFFF"
+							style={styles.logoutButton}
 							labelStyle={styles.logoutLabel}
-							contentStyle={styles.actionContent}
-							style={styles.actionButton}
+							contentStyle={styles.supportContent}
 						>
 							Log out
 						</Button>
-					</View>
+						<View style={styles.logoutSpacer} />
+					</>
 				)}
+
+				{/* ══════════ About ══════════ */}
+				<View style={styles.aboutSection}>
+					<Text style={styles.aboutText}>
+						Flare CU — Campus safety, community-driven.
+					</Text>
+					<Text style={styles.aboutText}>
+						Designed as part of the Human-Computer Interaction course at
+						Concordia University.
+					</Text>
+					<Text style={styles.aboutMeta}>Terms & Privacy · Version 1.0.0</Text>
+				</View>
 			</ScrollView>
 		</View>
 	);
@@ -220,13 +201,31 @@ const styles = StyleSheet.create({
 	},
 	content: {
 		paddingBottom: spacing.xl,
-		gap: spacing.base,
 	},
-	section: {
-		gap: spacing.xs,
+
+	// Group headers
+	groupTitle: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+		marginBottom: spacing.sm,
+		marginTop: spacing.xs,
 	},
-	toggleSection: {
-		gap: spacing.base,
+
+	// Setting rows
+	row: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		minHeight: components.touchTarget,
+		paddingVertical: spacing.sm,
+		gap: spacing.md,
+	},
+	rowText: {
+		flex: 1,
+		gap: 2,
 	},
 	label: {
 		fontSize: typography.body.fontSize,
@@ -236,41 +235,54 @@ const styles = StyleSheet.create({
 	hint: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
+		lineHeight: 16,
 	},
-	segmented: {
-		alignSelf: "flex-start",
-		marginTop: spacing.xs,
-	},
-	row: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		minHeight: components.touchTarget,
-	},
-	toggleText: {
-		flex: 1,
-		marginRight: spacing.md,
-		gap: 2,
-	},
+
 	divider: {
 		backgroundColor: colors.border,
+		marginVertical: spacing.md,
 	},
-	actionButton: {
-		borderColor: colors.border,
+
+	// Support buttons
+	supportButton: {
 		borderRadius: components.cardRadius,
+		borderColor: colors.border,
+		marginBottom: spacing.sm,
 	},
-	actionContent: {
+	supportContent: {
 		minHeight: components.touchTarget,
 	},
-	actionLabel: {
+	supportLabel: {
 		fontSize: typography.body.fontSize,
 	},
-	logoutContainer: {
-		alignItems: "center",
-		marginTop: spacing.md,
+
+	// Logout
+	logoutButton: {
+		borderRadius: components.cardRadius,
 	},
 	logoutLabel: {
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
+	},
+	logoutSpacer: {
+		height: spacing.md,
+	},
+
+	// About
+	aboutSection: {
+		alignItems: "center",
+		gap: spacing.xs,
+		paddingVertical: spacing.lg,
+	},
+	aboutText: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textDisabled,
+		textAlign: "center",
+		lineHeight: 18,
+	},
+	aboutMeta: {
+		fontSize: 11,
+		color: colors.textDisabled,
+		marginTop: spacing.xs,
 	},
 });

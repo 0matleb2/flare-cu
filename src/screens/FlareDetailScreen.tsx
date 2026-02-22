@@ -1,7 +1,7 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { Button, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { ProgressBar } from "../components/ProgressBar";
@@ -49,7 +49,7 @@ export const FlareDetailScreen = () => {
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
-			{/* Back header */}
+			{/* Header: back + bookmark */}
 			<View style={styles.header}>
 				<Button
 					icon="arrow-left"
@@ -59,14 +59,24 @@ export const FlareDetailScreen = () => {
 				>
 					Back
 				</Button>
+				<IconButton
+					icon={flare.savedByUser ? "bookmark" : "bookmark-outline"}
+					iconColor={flare.savedByUser ? colors.burgundy : colors.textSecondary}
+					size={24}
+					onPress={() => saveFlare.mutate(flare.id)}
+					disabled={saveFlare.isPending}
+				/>
 			</View>
 
 			<ScrollView contentContainerStyle={styles.content}>
-				{/* ═══ Hero card — the flare identity ═══ */}
+				{/* ═══ Hero — category + credibility at top ═══ */}
 				<View style={styles.heroCard}>
-					<Text style={styles.heroCategory}>
-						{CATEGORY_LABELS[flare.category]}
-					</Text>
+					<View style={styles.heroTopRow}>
+						<Text style={styles.heroCategory}>
+							{CATEGORY_LABELS[flare.category]}
+						</Text>
+						<CredibilityChip level={flare.credibility} />
+					</View>
 					<Text style={styles.heroSummary}>{flare.summary}</Text>
 					<View style={styles.heroMeta}>
 						<Text style={styles.heroLocation}>{flare.location}</Text>
@@ -75,73 +85,31 @@ export const FlareDetailScreen = () => {
 					</View>
 				</View>
 
-				{/* ═══ Status — credibility progression ═══ */}
-				<View style={styles.statusCard}>
-					<View style={styles.statusHeader}>
-						<Text style={styles.sectionTitle}>Status</Text>
-						<CredibilityChip level={flare.credibility} />
-					</View>
+				{/* ═══ Status — progress bar ═══ */}
+				<View style={styles.card}>
+					<Text style={styles.sectionTitle}>Status</Text>
 					<ProgressBar currentLevel={flare.credibility} showLabels />
 				</View>
 
-				{/* ═══ Primary actions ═══ */}
-				<View style={styles.actionsSection}>
-					{/* Start plan — big and prominent */}
-					<Button
-						mode="contained"
-						buttonColor={colors.burgundy}
-						textColor="#FFFFFF"
-						icon="play-circle-outline"
-						style={styles.primaryAction}
-						labelStyle={styles.primaryLabel}
-						contentStyle={styles.primaryContent}
-						onPress={() =>
-							navigation.navigate("ActionPlan", { planId: flare.id })
-						}
-					>
-						Start action plan
-					</Button>
+				{/* ═══ Start plan — single clear action ═══ */}
+				<Button
+					mode="contained"
+					buttonColor={colors.burgundy}
+					textColor="#FFFFFF"
+					icon="play-circle-outline"
+					style={styles.actionButton}
+					labelStyle={styles.actionLabel}
+					contentStyle={styles.actionContent}
+					onPress={() =>
+						navigation.navigate("ActionPlan", { planId: flare.id })
+					}
+				>
+					Start action plan
+				</Button>
 
-					{/* Emergency mode */}
-					<Button
-						mode="contained"
-						buttonColor="#D32F2F"
-						textColor="#FFFFFF"
-						icon="alert-circle"
-						style={styles.emergencyAction}
-						labelStyle={styles.secondaryLabel}
-						contentStyle={styles.secondaryContent}
-						onPress={() =>
-							activateEmergency({
-								source: "flare",
-								flare,
-								category: flare.category,
-								location: flare.location,
-								building: flare.building,
-							})
-						}
-					>
-						Enter emergency mode
-					</Button>
-
-					{/* Save flare */}
-					<Button
-						mode="outlined"
-						textColor={colors.burgundy}
-						icon={flare.savedByUser ? "bookmark" : "bookmark-outline"}
-						style={styles.outlineAction}
-						labelStyle={styles.secondaryLabel}
-						contentStyle={styles.secondaryContent}
-						onPress={() => saveFlare.mutate(flare.id)}
-						disabled={saveFlare.isPending}
-					>
-						{flare.savedByUser ? "Saved" : "Save flare"}
-					</Button>
-				</View>
-
-				{/* ═══ Timeline — at the bottom ═══ */}
+				{/* ═══ Timeline ═══ */}
 				{flare.timeline.length > 0 && (
-					<View style={styles.timelineCard}>
+					<View style={styles.card}>
 						<Text style={styles.sectionTitle}>Timeline</Text>
 						{flare.timeline.map((entry, i) => (
 							<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
@@ -152,6 +120,26 @@ export const FlareDetailScreen = () => {
 						))}
 					</View>
 				)}
+
+				{/* ═══ Emergency — small text link at very bottom ═══ */}
+				<Button
+					mode="text"
+					icon="alert-circle-outline"
+					textColor={colors.textSecondary}
+					compact
+					labelStyle={styles.emergencyLink}
+					onPress={() =>
+						activateEmergency({
+							source: "flare",
+							flare,
+							category: flare.category,
+							location: flare.location,
+							building: flare.building,
+						})
+					}
+				>
+					Enter emergency mode
+				</Button>
 			</ScrollView>
 		</View>
 	);
@@ -164,8 +152,9 @@ const styles = StyleSheet.create({
 	},
 	header: {
 		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
 		paddingHorizontal: spacing.xs,
-		paddingVertical: spacing.xs,
 	},
 	content: {
 		paddingHorizontal: components.screenPaddingH,
@@ -187,6 +176,11 @@ const styles = StyleSheet.create({
 		borderColor: colors.burgundy,
 		padding: spacing.lg,
 		gap: spacing.sm,
+	},
+	heroTopRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
 	},
 	heroCategory: {
 		fontSize: 13,
@@ -219,19 +213,14 @@ const styles = StyleSheet.create({
 		color: colors.textSecondary,
 	},
 
-	// Status card
-	statusCard: {
+	// Cards
+	card: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
 		borderWidth: components.cardBorderWidth,
 		borderColor: colors.border,
 		padding: components.cardPadding,
 		gap: spacing.sm,
-	},
-	statusHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
 	},
 	sectionTitle: {
 		fontSize: typography.h2.fontSize,
@@ -239,44 +228,19 @@ const styles = StyleSheet.create({
 		color: colors.textPrimary,
 	},
 
-	// Actions
-	actionsSection: {
-		gap: spacing.sm,
-	},
-	primaryAction: {
+	// Action
+	actionButton: {
 		borderRadius: components.cardRadius,
 	},
-	primaryContent: {
-		minHeight: 56,
-	},
-	primaryLabel: {
-		fontSize: 17,
-		fontWeight: "700",
-	},
-	emergencyAction: {
-		borderRadius: components.cardRadius,
-	},
-	outlineAction: {
-		borderRadius: components.cardRadius,
-		borderColor: colors.burgundy,
-	},
-	secondaryContent: {
+	actionContent: {
 		minHeight: components.touchTarget,
 	},
-	secondaryLabel: {
+	actionLabel: {
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
 
 	// Timeline
-	timelineCard: {
-		backgroundColor: colors.surface,
-		borderRadius: components.cardRadius,
-		borderWidth: components.cardBorderWidth,
-		borderColor: colors.border,
-		padding: components.cardPadding,
-		gap: spacing.sm,
-	},
 	timelineRow: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -298,5 +262,10 @@ const styles = StyleSheet.create({
 	timelineLabel: {
 		fontSize: typography.body.fontSize,
 		color: colors.textPrimary,
+	},
+
+	// Emergency text link
+	emergencyLink: {
+		fontSize: typography.caption.fontSize,
 	},
 });
