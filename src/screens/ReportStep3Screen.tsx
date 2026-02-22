@@ -1,7 +1,7 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCreateFlare } from "../hooks/useFlares";
@@ -14,7 +14,7 @@ import type { FlareCategory } from "../types";
 
 type Step3Route = RouteProp<NearbyStackParamList, "ReportStep3">;
 
-const RETRACT_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+const RETRACT_SECONDS = 10;
 
 export const ReportStep3Screen = () => {
 	const navigation = useNavigation<ReportStep3NavProp>();
@@ -24,23 +24,31 @@ export const ReportStep3Screen = () => {
 
 	const [note, setNote] = useState("");
 	const [submitted, setSubmitted] = useState(false);
-	const [retractable, setRetractable] = useState(true);
 	const [retracted, setRetracted] = useState(false);
-	const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+	const [countdown, setCountdown] = useState(RETRACT_SECONDS);
 
-	// Auto-expire retract window
+	// Countdown timer after submission
 	useEffect(() => {
-		if (!submittedAt) return;
-		const remaining = RETRACT_WINDOW_MS - (Date.now() - submittedAt);
-		if (remaining <= 0) {
-			setRetractable(false);
+		if (!submitted || retracted) return;
+		if (countdown <= 0) {
+			// Auto-navigate back to feed
+			navigation.popToTop();
 			return;
 		}
-		const timer = setTimeout(() => setRetractable(false), remaining);
+		const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
 		return () => clearTimeout(timer);
-	}, [submittedAt]);
+	}, [submitted, retracted, countdown, navigation]);
 
-	const handleSubmit = () => {
+	// Auto-return after retract
+	useEffect(() => {
+		if (!retracted) return;
+		const timer = setTimeout(() => {
+			navigation.popToTop();
+		}, 2000);
+		return () => clearTimeout(timer);
+	}, [retracted, navigation]);
+
+	const handleSubmit = useCallback(() => {
 		createFlare.mutate(
 			{
 				category: route.params.category as FlareCategory,
@@ -51,71 +59,77 @@ export const ReportStep3Screen = () => {
 			{
 				onSuccess: () => {
 					setSubmitted(true);
-					setSubmittedAt(Date.now());
+					setCountdown(RETRACT_SECONDS);
 				},
 			},
 		);
-	};
+	}, [createFlare, route.params, note]);
 
 	const handleRetract = () => {
-		// In a real app, this would delete the flare
 		setRetracted(true);
-		setRetractable(false);
 	};
 
+	// ═══ Submitted state with countdown ═══
 	if (submitted) {
 		return (
 			<View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
 				<View style={styles.successContent}>
 					{retracted ? (
 						<>
-							<Text style={styles.retractedTitle}>Retracted</Text>
+							<Text style={styles.retractedEmoji}>↩</Text>
+							<Text style={styles.retractedTitle}>Flare retracted</Text>
 							<Text style={styles.successBody}>
-								Your flare has been retracted.
+								Your flare has been retracted. Returning to feed...
 							</Text>
 						</>
 					) : (
 						<>
-							<Text style={styles.successTitle}>Submitted</Text>
+							<Text style={styles.successEmoji}>✓</Text>
+							<Text style={styles.successTitle}>Flare raised</Text>
 							<Text style={styles.successBody}>
 								Your flare has been submitted. Thank you for helping the
 								community.
 							</Text>
-							{retractable && (
-								<Button
-									mode="outlined"
-									onPress={handleRetract}
-									textColor={colors.statusCaution}
-									style={styles.retractButton}
-									labelStyle={styles.retractLabel}
-								>
-									Retract report
-								</Button>
-							)}
-							<Text style={styles.retractNote}>
-								{retractable
-									? "You can retract within 2 minutes."
-									: "Retract window has expired."}
-							</Text>
+
+							{/* Status */}
+							<View style={styles.statusCard}>
+								<Text style={styles.statusLabel}>Awaiting verification</Text>
+								<Text style={styles.statusBody}>
+									Other users can confirm your flare. Campus safety may verify
+									it officially.
+								</Text>
+							</View>
+
+							{/* Countdown + retract */}
+							<View style={styles.countdownSection}>
+								<View style={styles.countdownCircle}>
+									<Text style={styles.countdownNumber}>{countdown}</Text>
+								</View>
+								<Text style={styles.countdownLabel}>
+									{countdown > 0
+										? `Retract within ${countdown}s`
+										: "Returning to feed..."}
+								</Text>
+								{countdown > 0 && (
+									<Button
+										mode="outlined"
+										onPress={handleRetract}
+										textColor={colors.statusCaution}
+										style={styles.retractButton}
+										labelStyle={styles.retractLabel}
+									>
+										Retract flare
+									</Button>
+								)}
+							</View>
 						</>
 					)}
 				</View>
-
-				<Button
-					mode="contained"
-					onPress={() => navigation.popToTop()}
-					buttonColor={colors.burgundy}
-					textColor="#FFFFFF"
-					labelStyle={styles.buttonLabel}
-					contentStyle={styles.buttonContent}
-					style={styles.button}
-				>
-					Back to feed
-				</Button>
 			</View>
 		);
 	}
 
+	// ═══ Input state ═══
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
 			<View style={styles.header}>
@@ -129,7 +143,10 @@ export const ReportStep3Screen = () => {
 				</Button>
 			</View>
 
-			<View style={styles.content}>
+			<ScrollView
+				style={styles.scrollArea}
+				contentContainerStyle={styles.content}
+			>
 				{/* Progress bar */}
 				<View style={styles.progressRow}>
 					<View style={[styles.progressSegment, styles.progressDone]} />
@@ -150,11 +167,20 @@ export const ReportStep3Screen = () => {
 					style={styles.input}
 					outlineColor={colors.border}
 					activeOutlineColor={colors.burgundy}
+					right={<TextInput.Affix text={`${note.length}/140`} />}
 				/>
-				<Text style={styles.charCount}>{note.length}/140</Text>
+			</ScrollView>
 
+			{/* Submit button at bottom */}
+			<View
+				style={[
+					styles.bottomBar,
+					{ paddingBottom: insets.bottom + spacing.md },
+				]}
+			>
 				<Button
 					mode="contained"
+					icon="fire"
 					onPress={handleSubmit}
 					buttonColor={colors.burgundy}
 					textColor="#FFFFFF"
@@ -164,7 +190,7 @@ export const ReportStep3Screen = () => {
 					loading={createFlare.isPending}
 					disabled={createFlare.isPending}
 				>
-					Submit
+					Raise flare
 				</Button>
 			</View>
 		</View>
@@ -175,16 +201,17 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: colors.background,
-		paddingHorizontal: components.screenPaddingH,
 	},
 	header: {
 		flexDirection: "row",
-		marginHorizontal: -components.screenPaddingH,
 		paddingHorizontal: spacing.xs,
 		paddingVertical: spacing.xs,
 	},
+	scrollArea: { flex: 1 },
 	content: {
+		paddingHorizontal: components.screenPaddingH,
 		gap: spacing.md,
+		paddingBottom: spacing.lg,
 	},
 	title: {
 		fontSize: typography.h1.fontSize,
@@ -215,14 +242,16 @@ const styles = StyleSheet.create({
 	input: {
 		backgroundColor: colors.surface,
 	},
-	charCount: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-		textAlign: "right",
+
+	// Bottom bar
+	bottomBar: {
+		paddingHorizontal: components.screenPaddingH,
+		paddingTop: spacing.sm,
+		borderTopWidth: 1,
+		borderTopColor: colors.border,
 	},
 	button: {
 		borderRadius: components.cardRadius,
-		marginTop: spacing.sm,
 	},
 	buttonContent: {
 		minHeight: components.touchTarget,
@@ -231,39 +260,96 @@ const styles = StyleSheet.create({
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
+
+	// Success state
 	successContent: {
 		flex: 1,
 		justifyContent: "center",
 		alignItems: "center",
+		paddingHorizontal: components.screenPaddingH,
 		gap: spacing.md,
+	},
+	successEmoji: {
+		fontSize: 48,
+		color: colors.burgundy,
 	},
 	successTitle: {
 		fontSize: 24,
 		fontWeight: "700",
-		color: colors.statusSafe,
-	},
-	retractedTitle: {
-		fontSize: 24,
-		fontWeight: "700",
-		color: colors.textSecondary,
+		color: colors.burgundy,
 	},
 	successBody: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
 		textAlign: "center",
+		maxWidth: 280,
+	},
+
+	// Status card
+	statusCard: {
+		backgroundColor: colors.surface,
+		borderRadius: components.cardRadius,
+		borderWidth: 1,
+		borderColor: colors.border,
+		padding: spacing.md,
+		gap: spacing.xs,
+		width: "100%",
+		maxWidth: 320,
+	},
+	statusLabel: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+	},
+	statusBody: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 18,
+	},
+
+	// Countdown
+	countdownSection: {
+		alignItems: "center",
+		gap: spacing.sm,
+		marginTop: spacing.sm,
+	},
+	countdownCircle: {
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		borderWidth: 3,
+		borderColor: colors.burgundy,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	countdownNumber: {
+		fontSize: 24,
+		fontWeight: "700",
+		color: colors.burgundy,
+	},
+	countdownLabel: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
 	},
 	retractButton: {
 		borderColor: colors.statusCaution,
 		borderRadius: components.cardRadius,
-		marginTop: spacing.sm,
 	},
 	retractLabel: {
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
-	retractNote: {
-		fontSize: typography.caption.fontSize,
+
+	// Retracted state
+	retractedEmoji: {
+		fontSize: 48,
 		color: colors.textSecondary,
-		marginTop: spacing.sm,
+	},
+	retractedTitle: {
+		fontSize: 24,
+		fontWeight: "700",
+		color: colors.textSecondary,
 	},
 });
