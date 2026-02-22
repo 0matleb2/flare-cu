@@ -13,7 +13,7 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 
 	const [mobilityFriendly, setMobilityFriendly] = useState(false);
 	const [lowStimulation, setLowStimulation] = useState(false);
-	const [alertIntensity, setAlertIntensity] = useState<string>("medium");
+	const [alertIntensity, setAlertIntensity] = useState<string>("high");
 
 	const handleContinue = () => {
 		// In a real app, save preferences here via PreferencesService

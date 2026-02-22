@@ -23,9 +23,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const navigation = useNavigation<NearbyFeedNavProp>();
 
 	// Local state mirroring prefs
-	const [alertHigh, setAlertHigh] = useState(
-		prefs?.alertIntensity === "medium",
-	);
+	const [alertHigh, setAlertHigh] = useState(prefs?.alertIntensity === "high");
 	const [mobilityFriendly, setMobilityFriendly] = useState(
 		prefs?.mobilityFriendly ?? false,
 	);
@@ -58,7 +56,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 						value={alertHigh}
 						onValueChange={(v) => {
 							setAlertHigh(v);
-							handleUpdate({ alertIntensity: v ? "medium" : "low" });
+							handleUpdate({ alertIntensity: v ? "high" : "low" });
 						}}
 						color={colors.burgundy}
 					/>

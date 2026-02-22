@@ -65,7 +65,7 @@ export const CREDIBILITY_STEPS: CredibilityLevel[] = [
 
 // ── User Preferences ────────────────────────────────────────
 
-export type AlertIntensity = "low" | "medium";
+export type AlertIntensity = "low" | "high";
 export type NotificationRadius = "near_me" | "sgw_wide";
 
 export interface UserPreferences {
@@ -79,7 +79,7 @@ export interface UserPreferences {
 export const DEFAULT_PREFERENCES: UserPreferences = {
 	mobilityFriendly: false,
 	lowStimulation: false,
-	alertIntensity: "medium",
+	alertIntensity: "high",
 	notificationRadius: "near_me",
 	offlineCaching: true,
 };
