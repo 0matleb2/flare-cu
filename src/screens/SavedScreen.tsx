@@ -1,10 +1,23 @@
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Divider, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlareCard } from "../components/FlareCard";
+import { useFlares } from "../hooks/useFlares";
 import { colors, components, spacing, typography } from "../theme";
 
 export const SavedScreen = () => {
 	const insets = useSafeAreaInsets();
+	const { data: flares = [] } = useFlares();
+
+	const savedFlares = flares.filter((f) => f.savedByUser);
+	const syncTime = new Date().toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+	const syncDate = new Date().toLocaleDateString([], {
+		month: "short",
+		day: "numeric",
+	});
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
@@ -12,37 +25,34 @@ export const SavedScreen = () => {
 
 			<ScrollView contentContainerStyle={styles.content}>
 				{/* Saved flares section */}
-				<Text style={styles.sectionTitle}>Saved flares</Text>
-				<View style={styles.emptyCard}>
-					<Text style={styles.emptyText}>No saved flares yet.</Text>
-					<Text style={styles.emptyHint}>
-						Tap "Save flare" on any flare detail to add it here.
-					</Text>
-				</View>
-
-				<Divider style={styles.divider} />
-
-				{/* Saved routes section */}
-				<Text style={styles.sectionTitle}>Saved routes</Text>
-				<View style={styles.emptyCard}>
-					<Text style={styles.emptyText}>No saved routes yet.</Text>
-					<Text style={styles.emptyHint}>
-						Save a route from the Route tab to access it offline.
-					</Text>
-				</View>
-
-				<Divider style={styles.divider} />
+				<Text style={styles.sectionTitle}>
+					Saved flares ({savedFlares.length})
+				</Text>
+				{savedFlares.length > 0 ? (
+					savedFlares.map((flare) => (
+						<FlareCard key={flare.id} flare={flare} onPress={() => {}} />
+					))
+				) : (
+					<View style={styles.emptyCard}>
+						<Text style={styles.emptyText}>No saved flares yet.</Text>
+						<Text style={styles.emptyHint}>
+							Tap "Save flare" on any flare detail to add it here.
+						</Text>
+					</View>
+				)}
 
 				{/* Offline pack status */}
 				<Text style={styles.sectionTitle}>Offline pack</Text>
 				<View style={styles.card}>
 					<View style={styles.row}>
 						<Text style={styles.label}>Last sync</Text>
-						<Text style={styles.value}>Today, 10:42 AM</Text>
+						<Text style={styles.value}>
+							{syncDate}, {syncTime}
+						</Text>
 					</View>
 					<View style={styles.row}>
 						<Text style={styles.label}>Cached items</Text>
-						<Text style={styles.value}>12 flares</Text>
+						<Text style={styles.value}>{flares.length} flares</Text>
 					</View>
 				</View>
 			</ScrollView>
@@ -110,9 +120,5 @@ const styles = StyleSheet.create({
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
-	},
-	divider: {
-		backgroundColor: colors.border,
-		marginVertical: spacing.sm,
 	},
 });

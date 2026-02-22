@@ -19,7 +19,7 @@ interface MockRoute {
 	steps: { instruction: string; warning?: string }[];
 }
 
-const MOCK_ROUTES: MockRoute[] = [
+const ALL_ROUTES: MockRoute[] = [
 	{
 		id: "r1",
 		label: "safest",
@@ -31,7 +31,7 @@ const MOCK_ROUTES: MockRoute[] = [
 				instruction: "Pass the EV Building on your right.",
 				warning: "Dense crowd reported near EV entrance.",
 			},
-			{ instruction: "Arrive at JMSB main entrance." },
+			{ instruction: "Arrive at your destination." },
 		],
 	},
 	{
@@ -41,7 +41,7 @@ const MOCK_ROUTES: MockRoute[] = [
 			{ instruction: "Use the elevator to ground floor in Hall Building." },
 			{ instruction: "Exit through the accessible ramp on Guy Street side." },
 			{ instruction: "Follow the sidewalk south on Guy Street." },
-			{ instruction: "Enter JMSB via the accessible entrance on Guy." },
+			{ instruction: "Enter destination via the accessible entrance." },
 		],
 	},
 	{
@@ -50,15 +50,41 @@ const MOCK_ROUTES: MockRoute[] = [
 		steps: [
 			{ instruction: "Exit Hall Building through the main entrance." },
 			{ instruction: "Cross de Maisonneuve directly." },
-			{ instruction: "Enter JMSB from the north side." },
+			{ instruction: "Enter destination from the north side." },
 		],
 	},
 ];
+
+function orderRoutes(
+	routes: MockRoute[],
+	prefs: { mobilityFriendly: boolean; lowStimulation: boolean },
+): MockRoute[] {
+	const sorted = [...routes];
+	sorted.sort((a, b) => {
+		// If mobility-friendly, prioritize accessible
+		if (prefs.mobilityFriendly) {
+			if (a.label === "accessible") return -1;
+			if (b.label === "accessible") return 1;
+		}
+		// If low stimulation, prioritize safest (fewest warnings)
+		if (prefs.lowStimulation) {
+			if (a.label === "safest") return -1;
+			if (b.label === "safest") return 1;
+		}
+		return 0;
+	});
+	return sorted;
+}
 
 export const RouteResultsScreen = () => {
 	const navigation = useNavigation<RouteResultsNavProp>();
 	const route = useRoute<ResultsRoute>();
 	const insets = useSafeAreaInsets();
+
+	const orderedRoutes = orderRoutes(ALL_ROUTES, {
+		mobilityFriendly: route.params.mobilityFriendly,
+		lowStimulation: route.params.lowStimulation,
+	});
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -74,13 +100,21 @@ export const RouteResultsScreen = () => {
 			</View>
 
 			<Text style={styles.title}>Routes to {route.params.to}</Text>
+			<Text style={styles.hint}>
+				Best match for your preferences is shown first.
+			</Text>
 
 			<ScrollView contentContainerStyle={styles.list}>
-				{MOCK_ROUTES.map((r) => (
+				{orderedRoutes.map((r, routeIndex) => (
 					<View key={r.id} style={styles.card}>
-						<Text style={styles.routeLabel}>
-							{ROUTE_LABEL_DISPLAY[r.label]}
-						</Text>
+						<View style={styles.labelRow}>
+							<Text style={styles.routeLabel}>
+								{ROUTE_LABEL_DISPLAY[r.label]}
+							</Text>
+							{routeIndex === 0 && (
+								<Text style={styles.bestMatch}>Best match</Text>
+							)}
+						</View>
 
 						{r.steps.map((step, i) => (
 							<View key={`${r.id}-${i}`} style={styles.stepRow}>
@@ -129,6 +163,11 @@ const styles = StyleSheet.create({
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
 		paddingHorizontal: components.screenPaddingH,
+	},
+	hint: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+		paddingHorizontal: components.screenPaddingH,
 		marginBottom: spacing.md,
 	},
 	list: {
@@ -144,10 +183,20 @@ const styles = StyleSheet.create({
 		padding: components.cardPadding,
 		gap: spacing.sm,
 	},
+	labelRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+	},
 	routeLabel: {
 		fontSize: typography.h2.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.burgundy,
+	},
+	bestMatch: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: typography.chip.fontWeight,
+		color: colors.statusSafe,
 	},
 	stepRow: {
 		flexDirection: "row",

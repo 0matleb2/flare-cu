@@ -1,5 +1,5 @@
-import { StyleSheet, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "react-native-paper";
 import { colors, components, spacing, typography } from "../theme";
 import type { Flare } from "../types";
 import { CATEGORY_LABELS } from "../types";
@@ -8,72 +8,47 @@ import { ProgressBar } from "./ProgressBar";
 
 interface FlareCardProps {
 	flare: Flare;
-	onViewGuidance?: () => void;
-	onDetails?: () => void;
+	onPress: () => void;
 }
 
 function timeAgo(ms: number): string {
 	const diff = Date.now() - ms;
 	const mins = Math.floor(diff / 60000);
 	if (mins < 1) return "Just now";
-	if (mins < 60) return `Updated ${mins} min ago`;
+	if (mins < 60) return `${mins}m ago`;
 	const hours = Math.floor(mins / 60);
-	if (hours < 24) return `Updated ${hours}h ago`;
-	return `Updated ${Math.floor(hours / 24)}d ago`;
+	if (hours < 24) return `${hours}h ago`;
+	return `${Math.floor(hours / 24)}d ago`;
 }
 
-export const FlareCard = ({
-	flare,
-	onViewGuidance,
-	onDetails,
-}: FlareCardProps) => {
+export const FlareCard = ({ flare, onPress }: FlareCardProps) => {
 	return (
-		<View style={styles.card}>
-			{/* Category title */}
-			<Text style={styles.category}>{CATEGORY_LABELS[flare.category]}</Text>
-
-			{/* Location */}
-			<Text style={styles.location} numberOfLines={2}>
-				{flare.location}
-			</Text>
-
-			{/* Credibility + timestamp row */}
-			<View style={styles.metaRow}>
-				<CredibilityChip level={flare.credibility} />
+		<TouchableOpacity
+			style={styles.card}
+			onPress={onPress}
+			activeOpacity={0.7}
+			accessibilityRole="button"
+			accessibilityLabel={`${CATEGORY_LABELS[flare.category]} at ${flare.location}`}
+		>
+			{/* Top row: category + timestamp */}
+			<View style={styles.topRow}>
+				<Text style={styles.category}>{CATEGORY_LABELS[flare.category]}</Text>
 				<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
 			</View>
 
-			{/* Mini progress bar */}
-			<View style={styles.progressContainer}>
-				<ProgressBar currentLevel={flare.credibility} />
-			</View>
+			{/* Location */}
+			<Text style={styles.location} numberOfLines={1}>
+				{flare.location}
+			</Text>
 
-			{/* Actions */}
-			<View style={styles.actions}>
-				<Button
-					mode="contained"
-					onPress={onViewGuidance}
-					buttonColor={colors.burgundy}
-					textColor="#FFFFFF"
-					labelStyle={styles.buttonLabel}
-					contentStyle={styles.buttonContent}
-					style={styles.primaryButton}
-					compact
-				>
-					View guidance
-				</Button>
-				<Button
-					mode="text"
-					onPress={onDetails}
-					textColor={colors.burgundy}
-					labelStyle={styles.secondaryLabel}
-					contentStyle={styles.buttonContent}
-					compact
-				>
-					Details
-				</Button>
+			{/* Bottom row: credibility + mini progress */}
+			<View style={styles.bottomRow}>
+				<CredibilityChip level={flare.credibility} />
+				<View style={styles.progressWrap}>
+					<ProgressBar currentLevel={flare.credibility} />
+				</View>
 			</View>
-		</View>
+		</TouchableOpacity>
 	);
 };
 
@@ -85,48 +60,33 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		padding: components.cardPadding,
 		marginBottom: components.cardGap,
+		gap: spacing.sm,
+		minHeight: components.touchTarget,
+	},
+	topRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
 	},
 	category: {
 		fontSize: typography.h2.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
-		marginBottom: spacing.xs,
-	},
-	location: {
-		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
-		marginBottom: spacing.sm,
-	},
-	metaRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: spacing.sm,
 	},
 	timestamp: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
 	},
-	progressContainer: {
-		marginBottom: spacing.md,
+	location: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
 	},
-	actions: {
+	bottomRow: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: spacing.sm,
+		gap: spacing.md,
 	},
-	primaryButton: {
-		borderRadius: components.cardRadius,
-	},
-	buttonContent: {
-		minHeight: 36,
-	},
-	buttonLabel: {
-		fontSize: typography.button.fontSize,
-		fontWeight: typography.button.fontWeight,
-	},
-	secondaryLabel: {
-		fontSize: typography.caption.fontSize,
-		fontWeight: typography.button.fontWeight,
+	progressWrap: {
+		flex: 1,
 	},
 });

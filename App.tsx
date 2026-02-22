@@ -18,6 +18,7 @@ import { ActionPlanScreen } from "./src/screens/ActionPlanScreen";
 import { CreateAccountScreen } from "./src/screens/CreateAccountScreen";
 import { EmergencyScreen } from "./src/screens/EmergencyScreen";
 import { FlareDetailScreen } from "./src/screens/FlareDetailScreen";
+import { HelpScreen } from "./src/screens/HelpScreen";
 import { NearbyScreen } from "./src/screens/NearbyScreen";
 import { PreferencesScreen } from "./src/screens/PreferencesScreen";
 import { ReportStep1Screen } from "./src/screens/ReportStep1Screen";
@@ -52,6 +53,7 @@ function NearbyStackNavigator() {
 			<NearbyStack.Screen name="ReportStep2" component={ReportStep2Screen} />
 			<NearbyStack.Screen name="ReportStep3" component={ReportStep3Screen} />
 			<NearbyStack.Screen name="ActionPlan" component={ActionPlanScreen} />
+			<NearbyStack.Screen name="Help" component={HelpScreen} />
 		</NearbyStack.Navigator>
 	);
 }
@@ -66,7 +68,7 @@ function RouteStackNavigator() {
 	);
 }
 
-function MainTabs() {
+function MainTabs({ onLogout }: { onLogout: () => void }) {
 	return (
 		<Tab.Navigator
 			screenOptions={{
@@ -95,11 +97,9 @@ function MainTabs() {
 				component={SavedScreen}
 				options={{ tabBarLabel: "Saved" }}
 			/>
-			<Tab.Screen
-				name="SettingsTab"
-				component={SettingsScreen}
-				options={{ tabBarLabel: "Settings" }}
-			/>
+			<Tab.Screen name="SettingsTab" options={{ tabBarLabel: "Settings" }}>
+				{() => <SettingsScreen onLogout={onLogout} />}
+			</Tab.Screen>
 		</Tab.Navigator>
 	);
 }
@@ -129,7 +129,7 @@ export default function App() {
 				<PaperProvider theme={theme}>
 					<NavigationContainer>
 						{isOnboarded ? (
-							<MainTabs />
+							<MainTabs onLogout={() => setIsOnboarded(false)} />
 						) : (
 							<AuthFlow onComplete={() => setIsOnboarded(true)} />
 						)}

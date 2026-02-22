@@ -16,12 +16,13 @@ export type AuthStackParamList = {
 export type NearbyStackParamList = {
 	NearbyFeed: undefined;
 	FlareDetail: { flareId: string };
-	EmergencyUX: { flareId: string };
+	EmergencyUX: { flareId?: string };
 	ZonePrompt: { flareId: string };
 	ReportStep1: undefined;
 	ReportStep2: { category: string };
 	ReportStep3: { category: string; building: string; entrance?: string };
 	ActionPlan: { planId: string };
+	Help: undefined;
 };
 
 // ── Route Stack (nested in tab) ─────────────────────────────
@@ -94,6 +95,10 @@ export type ReportStep3NavProp = NativeStackNavigationProp<
 export type ActionPlanNavProp = NativeStackNavigationProp<
 	NearbyStackParamList,
 	"ActionPlan"
+>;
+export type HelpNavProp = NativeStackNavigationProp<
+	NearbyStackParamList,
+	"Help"
 >;
 
 // Route stack screens

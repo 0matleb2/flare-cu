@@ -1,9 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
-import { Badge, FAB, Text } from "react-native-paper";
+import { FAB, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ActionCard } from "../components/ActionCard";
 import { EmptyState } from "../components/EmptyState";
 import { FilterChips } from "../components/FilterChips";
 import { FlareCard } from "../components/FlareCard";
@@ -11,62 +10,40 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { StatusRow } from "../components/StatusRow";
 import { ZonePromptModal } from "../components/ZonePromptModal";
 import { useFlares } from "../hooks/useFlares";
+import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 import type { FeedFilter, Flare } from "../types";
 
 export const NearbyScreen = () => {
 	const { data: flares = [], isLoading, refetch } = useFlares();
+	const { data: prefs } = usePreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const insets = useSafeAreaInsets();
 
 	const [filter, setFilter] = useState<FeedFilter>("near_me");
-	const [isOnline, setIsOnline] = useState(true);
 	const [zonePromptVisible, setZonePromptVisible] = useState(false);
-	const [zoneFlareId, setZoneFlareId] = useState<string | null>(null);
+	const [zoneFlareId, _setZoneFlareId] = useState<string | null>(null);
 
-	// Simulated offline queue count
-	const [queuedCount] = useState(0);
+	// Use offline state from prefs (toggled in Settings)
+	const isOnline = prefs?.offlineCaching !== false;
 
-	// Simulate zone detection: show prompt when a "reported" flare exists
-	const _simulateZoneDetection = useCallback(() => {
-		const reportedFlare = flares.find((f) => f.credibility === "reported");
-		if (reportedFlare) {
-			setZoneFlareId(reportedFlare.id);
-			setZonePromptVisible(true);
-		}
-	}, [flares]);
-
-	// Filter flares
+	// Filter flares based on active filter + preferences
 	const filteredFlares = flares.filter((f) => {
 		if (filter === "hide_resolved" && f.credibility === "resolved")
 			return false;
 		if (filter === "high_tension") return f.credibility === "reported";
+		// If alert intensity is "low", hide reported-only (unconfirmed) flares
+		if (prefs?.alertIntensity === "low" && f.credibility === "reported")
+			return false;
 		return true;
 	});
 
 	const renderItem = ({ item }: { item: Flare }) => (
 		<FlareCard
 			flare={item}
-			onViewGuidance={() =>
-				navigation.navigate("FlareDetail", { flareId: item.id })
-			}
-			onDetails={() => navigation.navigate("FlareDetail", { flareId: item.id })}
+			onPress={() => navigation.navigate("FlareDetail", { flareId: item.id })}
 		/>
-	);
-
-	const ListHeader = () => (
-		<View style={styles.listHeader}>
-			{flares.some((f) => f.credibility === "reported") && (
-				<ActionCard
-					onPress={() => {
-						const first = flares.find((f) => f.credibility === "reported");
-						if (first)
-							navigation.navigate("FlareDetail", { flareId: first.id });
-					}}
-				/>
-			)}
-		</View>
 	);
 
 	const syncTimeStr = new Date().toLocaleTimeString([], {
@@ -80,13 +57,13 @@ export const NearbyScreen = () => {
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
 					<Text style={styles.title}>Nearby</Text>
-					{/* Offline toggle for demo */}
-					<Text
-						style={styles.offlineToggle}
-						onPress={() => setIsOnline((prev) => !prev)}
-					>
-						{isOnline ? "Simulate offline" : "Go online"}
-					</Text>
+					<IconButton
+						icon="help-circle-outline"
+						iconColor={colors.textSecondary}
+						size={24}
+						onPress={() => navigation.navigate("Help")}
+						accessibilityLabel="Help"
+					/>
 				</View>
 				<StatusRow
 					isOnline={isOnline}
@@ -112,7 +89,6 @@ export const NearbyScreen = () => {
 				refreshControl={
 					<RefreshControl refreshing={isLoading} onRefresh={refetch} />
 				}
-				ListHeaderComponent={ListHeader}
 				ListEmptyComponent={!isLoading ? <EmptyState /> : null}
 			/>
 
@@ -125,11 +101,6 @@ export const NearbyScreen = () => {
 				onPress={() => navigation.navigate("ReportStep1")}
 				customSize={48}
 			/>
-
-			{/* Queued count badge (when offline with queued reports) */}
-			{!isOnline && queuedCount > 0 && (
-				<Badge style={styles.badge}>{`${queuedCount} queued`}</Badge>
-			)}
 
 			{/* Zone of Interest prompt */}
 			<ZonePromptModal
@@ -154,8 +125,8 @@ const styles = StyleSheet.create({
 	},
 	header: {
 		paddingHorizontal: components.screenPaddingH,
-		paddingVertical: spacing.md,
-		gap: spacing.sm,
+		paddingVertical: spacing.sm,
+		gap: spacing.xs,
 	},
 	titleRow: {
 		flexDirection: "row",
@@ -167,14 +138,6 @@ const styles = StyleSheet.create({
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
 	},
-	offlineToggle: {
-		fontSize: typography.caption.fontSize,
-		color: colors.burgundy,
-		fontWeight: typography.chip.fontWeight,
-	},
-	listHeader: {
-		marginBottom: spacing.xs,
-	},
 	list: {
 		paddingHorizontal: components.screenPaddingH,
 		paddingBottom: 100,
@@ -185,11 +148,5 @@ const styles = StyleSheet.create({
 		bottom: 16,
 		backgroundColor: colors.burgundy,
 		borderRadius: components.cardRadius,
-	},
-	badge: {
-		position: "absolute",
-		right: components.screenPaddingH,
-		bottom: 72,
-		backgroundColor: colors.statusCaution,
 	},
 });

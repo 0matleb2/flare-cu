@@ -1,3 +1,4 @@
+import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -13,10 +14,16 @@ import {
 	useResetPreferences,
 	useUpdatePreferences,
 } from "../hooks/usePreferences";
+import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
-export const SettingsScreen = () => {
+interface SettingsScreenProps {
+	onLogout?: () => void;
+}
+
+export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const insets = useSafeAreaInsets();
+	const navigation = useNavigation<NearbyFeedNavProp>();
 	const { data: prefs } = usePreferences();
 	const updatePrefs = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
@@ -42,10 +49,6 @@ export const SettingsScreen = () => {
 		updatePrefs.mutate({ [key]: value });
 	};
 
-	const handleReset = () => {
-		resetPrefs.mutate(undefined);
-	};
-
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
 			<Text style={styles.title}>Settings</Text>
@@ -54,7 +57,9 @@ export const SettingsScreen = () => {
 				{/* Alert intensity */}
 				<View style={styles.section}>
 					<Text style={styles.label}>Alert intensity</Text>
-					<Text style={styles.hint}>Controls how many alerts you receive</Text>
+					<Text style={styles.hint}>
+						Low: hides unconfirmed flares · Medium: shows all
+					</Text>
 					<SegmentedButtons
 						value={alertIntensity}
 						onValueChange={(v) => {
@@ -75,7 +80,7 @@ export const SettingsScreen = () => {
 				<View style={styles.section}>
 					<Text style={styles.label}>Notification radius</Text>
 					<Text style={styles.hint}>
-						Near me: immediate area · SGW wide: full campus
+						Near me: immediate area · SGW wide: all campus flares
 					</Text>
 					<SegmentedButtons
 						value={notifRadius}
@@ -99,7 +104,7 @@ export const SettingsScreen = () => {
 						<View style={styles.toggleText}>
 							<Text style={styles.label}>Mobility-friendly guidance</Text>
 							<Text style={styles.hint}>
-								Prioritizes routes with ramps and elevators
+								Accessible routes shown first in Route tab
 							</Text>
 						</View>
 						<Switch
@@ -116,7 +121,7 @@ export const SettingsScreen = () => {
 						<View style={styles.toggleText}>
 							<Text style={styles.label}>Low stimulation mode</Text>
 							<Text style={styles.hint}>
-								Reduces motion, mutes sounds, simplifies alerts
+								Reduces motion and simplifies alert cards
 							</Text>
 						</View>
 						<Switch
@@ -133,7 +138,7 @@ export const SettingsScreen = () => {
 						<View style={styles.toggleText}>
 							<Text style={styles.label}>Offline caching</Text>
 							<Text style={styles.hint}>
-								Saves flares locally for offline access
+								Off = simulate offline mode with cached data
 							</Text>
 						</View>
 						<Switch
@@ -149,6 +154,19 @@ export const SettingsScreen = () => {
 
 				<Divider style={styles.divider} />
 
+				{/* Help & About */}
+				<Button
+					mode="outlined"
+					icon="help-circle-outline"
+					onPress={() => navigation.navigate("NearbyTab", { screen: "Help" })}
+					textColor={colors.textPrimary}
+					style={styles.helpButton}
+					labelStyle={styles.helpLabel}
+					contentStyle={styles.helpContent}
+				>
+					Help & Documentation
+				</Button>
+
 				{/* About credibility labels */}
 				<View style={styles.infoCard}>
 					<Text style={styles.infoTitle}>About credibility labels</Text>
@@ -162,13 +180,30 @@ export const SettingsScreen = () => {
 				{/* Reset to defaults */}
 				<Button
 					mode="outlined"
-					onPress={handleReset}
+					onPress={() => resetPrefs.mutate(undefined)}
 					textColor={colors.textSecondary}
 					style={styles.resetButton}
 					labelStyle={styles.resetLabel}
 				>
 					Reset to defaults
 				</Button>
+
+				{/* Logout */}
+				{onLogout && (
+					<View style={styles.logoutContainer}>
+						<Button
+							mode="contained"
+							onPress={onLogout}
+							buttonColor={colors.burgundy}
+							textColor="#FFFFFF"
+							labelStyle={styles.logoutLabel}
+							contentStyle={styles.logoutContent}
+							style={styles.logoutButton}
+						>
+							Log out
+						</Button>
+					</View>
+				)}
 			</ScrollView>
 		</View>
 	);
@@ -223,6 +258,16 @@ const styles = StyleSheet.create({
 	divider: {
 		backgroundColor: colors.border,
 	},
+	helpButton: {
+		borderColor: colors.border,
+		borderRadius: components.cardRadius,
+	},
+	helpContent: {
+		minHeight: components.touchTarget,
+	},
+	helpLabel: {
+		fontSize: typography.body.fontSize,
+	},
 	infoCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
@@ -247,5 +292,20 @@ const styles = StyleSheet.create({
 	},
 	resetLabel: {
 		fontSize: typography.body.fontSize,
+	},
+	logoutContainer: {
+		alignItems: "center",
+		marginTop: spacing.lg,
+	},
+	logoutButton: {
+		borderRadius: components.cardRadius,
+		minWidth: 200,
+	},
+	logoutContent: {
+		minHeight: components.touchTarget,
+	},
+	logoutLabel: {
+		fontSize: typography.button.fontSize,
+		fontWeight: typography.button.fontWeight,
 	},
 });
