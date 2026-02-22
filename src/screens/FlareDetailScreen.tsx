@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
-import { ProgressBar } from "../components/ProgressBar";
 import { useEmergency } from "../context/EmergencyContext";
 import { useFlares, useSaveFlare } from "../hooks/useFlares";
 import type {
@@ -12,7 +11,8 @@ import type {
 	NearbyStackParamList,
 } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
-import { CATEGORY_LABELS } from "../types";
+import type { CredibilityLevel } from "../types";
+import { CATEGORY_LABELS, CREDIBILITY_STEPS } from "../types";
 
 type FlareDetailRoute = RouteProp<NearbyStackParamList, "FlareDetail">;
 
@@ -87,13 +87,7 @@ export const FlareDetailScreen = () => {
 					</View>
 				</View>
 
-				{/* ═══ Status — progress bar ═══ */}
-				<View style={styles.card}>
-					<Text style={styles.sectionTitle}>Status</Text>
-					<ProgressBar currentLevel={flare.credibility} showLabels />
-				</View>
-
-				{/* ═══ Start plan — single clear action ═══ */}
+				{/* ═══ Start plan ═══ */}
 				<Button
 					mode="contained"
 					buttonColor={colors.burgundy}
@@ -109,19 +103,32 @@ export const FlareDetailScreen = () => {
 					Start action plan
 				</Button>
 
-				{/* ═══ Timeline ═══ */}
-				{flare.timeline.length > 0 && (
-					<View style={styles.card}>
-						<Text style={styles.sectionTitle}>Timeline</Text>
-						{flare.timeline.map((entry, i) => (
-							<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
-								<View style={styles.timelineDot} />
-								<Text style={styles.timelineTime}>{entry.time}</Text>
-								<Text style={styles.timelineLabel}>{entry.label}</Text>
-							</View>
-						))}
-					</View>
-				)}
+				{/* ═══ Timeline + credibility progression ═══ */}
+				<View style={styles.card}>
+					<Text style={styles.sectionTitle}>Timeline</Text>
+					{/* Actual timeline entries */}
+					{flare.timeline.map((entry, i) => (
+						<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
+							<View style={[styles.timelineDot, styles.timelineDotDone]} />
+							<Text style={styles.timelineTime}>{entry.time}</Text>
+							<Text style={styles.timelineLabel}>{entry.label}</Text>
+						</View>
+					))}
+					{/* Future credibility steps (greyed out) */}
+					{CREDIBILITY_STEPS.filter((step: CredibilityLevel) => {
+						const currentIdx = CREDIBILITY_STEPS.indexOf(flare.credibility);
+						const stepIdx = CREDIBILITY_STEPS.indexOf(step);
+						return stepIdx > currentIdx;
+					}).map((step: CredibilityLevel) => (
+						<View key={step} style={styles.timelineRow}>
+							<View style={[styles.timelineDot, styles.timelineDotPending]} />
+							<Text style={styles.timelineTimePending}>—</Text>
+							<Text style={styles.timelineLabelPending}>
+								{step.charAt(0).toUpperCase() + step.slice(1)}
+							</Text>
+						</View>
+					))}
+				</View>
 
 				{/* ═══ Emergency — small text link at very bottom ═══ */}
 				<Button
@@ -255,15 +262,33 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 		backgroundColor: colors.burgundy,
 	},
+	timelineDotDone: {
+		backgroundColor: colors.burgundy,
+	},
+	timelineDotPending: {
+		backgroundColor: colors.border,
+		borderWidth: 1,
+		borderColor: colors.textDisabled,
+	},
 	timelineTime: {
 		fontSize: typography.caption.fontSize,
 		fontWeight: typography.chip.fontWeight,
 		color: colors.textSecondary,
 		width: 40,
 	},
+	timelineTimePending: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textDisabled,
+		width: 40,
+	},
 	timelineLabel: {
 		fontSize: typography.body.fontSize,
 		color: colors.textPrimary,
+	},
+	timelineLabelPending: {
+		fontSize: typography.body.fontSize,
+		color: colors.textDisabled,
+		fontStyle: "italic",
 	},
 
 	// Emergency text link

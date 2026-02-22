@@ -12,7 +12,6 @@ import { CATEGORY_LABELS } from "../types";
 type ActionPlanRoute = RouteProp<NearbyStackParamList, "ActionPlan">;
 
 interface DirectionStep {
-	icon: string;
 	instruction: string;
 	detail: string;
 	distance?: string;
@@ -24,26 +23,22 @@ function getDirections(building?: string, entrance?: string): DirectionStep[] {
 	if (building === "Hall Building") {
 		return [
 			{
-				icon: "📍",
 				instruction: "Start at your current location",
 				detail:
 					"Face Hall Building (the large building with the glass facade on de Maisonneuve Blvd).",
 			},
 			{
-				icon: "🚶",
 				instruction: "Walk toward Mackay Street",
 				detail:
 					"Head west along de Maisonneuve Blvd. The Mackay side entrance is on your left.",
 				distance: "~1 min",
 			},
 			{
-				icon: "↗️",
 				instruction: `Enter via ${entrance ?? "the side entrance"}`,
 				detail:
 					"Look for the double doors. Accessible entrance with ramp is 10m further along Mackay St.",
 			},
 			{
-				icon: "🏢",
 				instruction: "Inside: head to the main lobby",
 				detail:
 					"Take the corridor straight ahead. Elevators are on the right, stairs on the left. Security desk is in the lobby.",
@@ -54,26 +49,22 @@ function getDirections(building?: string, entrance?: string): DirectionStep[] {
 	if (building === "EV Building") {
 		return [
 			{
-				icon: "📍",
 				instruction: "Start at your current location",
 				detail:
 					"Face EV Building on de Maisonneuve Blvd, east of Hall Building.",
 			},
 			{
-				icon: "🚶",
 				instruction: "Walk east on de Maisonneuve",
 				detail:
 					"Cross Guy Street at the lights. EV Building entrance is ahead on the south side.",
 				distance: "~2 min",
 			},
 			{
-				icon: "↗️",
 				instruction: `Enter via ${entrance ?? "the main entrance"}`,
 				detail:
 					"Use the revolving doors or the accessible door to the right. The atrium is straight ahead.",
 			},
 			{
-				icon: "🏢",
 				instruction: "Inside: the atrium connects all wings",
 				detail:
 					"Elevators are to the left. The sky-bridge to Hall Building is on floor 2. Security is at the ground-floor desk.",
@@ -84,26 +75,22 @@ function getDirections(building?: string, entrance?: string): DirectionStep[] {
 	if (building === "LB Building") {
 		return [
 			{
-				icon: "📍",
 				instruction: "Start at your current location",
 				detail:
 					"LB Building (Webster Library) is on de Maisonneuve Blvd, west of Guy Street.",
 			},
 			{
-				icon: "🚶",
 				instruction: "Walk west on de Maisonneuve",
 				detail:
 					"Pass the GM Building on your right. LB Building is the large building ahead.",
 				distance: "~3 min",
 			},
 			{
-				icon: "↗️",
 				instruction: `Enter via ${entrance ?? "the main entrance"}`,
 				detail:
 					"The main entrance faces de Maisonneuve. Webster Library is on floors 2–4.",
 			},
 			{
-				icon: "🏢",
 				instruction: "Inside: lobby and library access",
 				detail:
 					"Elevators and stairs are to the right of the entrance. Study spaces on floors 2–4.",
@@ -114,26 +101,22 @@ function getDirections(building?: string, entrance?: string): DirectionStep[] {
 	if (building === "GM Building") {
 		return [
 			{
-				icon: "📍",
 				instruction: "Start at your current location",
 				detail:
 					"GM Building is on de Maisonneuve Blvd, near the corner of Guy Street.",
 			},
 			{
-				icon: "🚶",
 				instruction: "Walk toward Guy Street",
 				detail:
 					"Head toward the intersection of Guy and de Maisonneuve. GM Building is on the south side.",
 				distance: "~2 min",
 			},
 			{
-				icon: "↗️",
 				instruction: `Enter via ${entrance ?? "the main entrance"}`,
 				detail:
 					"The main entrance faces de Maisonneuve. There is a secondary entrance on Guy Street.",
 			},
 			{
-				icon: "🏢",
 				instruction: "Inside: find your destination",
 				detail:
 					"Check the directory in the lobby. Elevators are straight ahead past the entrance.",
@@ -144,25 +127,21 @@ function getDirections(building?: string, entrance?: string): DirectionStep[] {
 	// Generic fallback
 	return [
 		{
-			icon: "📍",
 			instruction: "Start at your current location",
 			detail: "Face the direction of your destination building.",
 		},
 		{
-			icon: "🚶",
 			instruction: "Walk toward your destination",
 			detail:
 				"Stay on well-lit, populated routes. Use de Maisonneuve Blvd or Ste-Catherine as your main corridor.",
 			distance: "~3–5 min",
 		},
 		{
-			icon: "↗️",
 			instruction: "Enter the building",
 			detail:
 				"Use the main entrance. Look for accessibility signs if needed. Check for posted notices.",
 		},
 		{
-			icon: "🏢",
 			instruction: "Find your destination inside",
 			detail:
 				"Check the lobby directory. If unsure, ask at the security or reception desk.",
@@ -262,7 +241,6 @@ export const ActionPlanScreen = () => {
 
 				{/* Current direction card */}
 				<View style={styles.directionCard}>
-					<Text style={styles.directionIcon}>{step.icon}</Text>
 					<Text style={styles.directionInstruction}>{step.instruction}</Text>
 					<Text style={styles.directionDetail}>{step.detail}</Text>
 					{step.warning && (
@@ -407,9 +385,7 @@ const styles = StyleSheet.create({
 		padding: spacing.lg,
 		gap: spacing.sm,
 	},
-	directionIcon: {
-		fontSize: 28,
-	},
+
 	directionInstruction: {
 		fontSize: 20,
 		fontWeight: "700",
