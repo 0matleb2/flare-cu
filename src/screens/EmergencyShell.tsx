@@ -153,12 +153,11 @@ export const EmergencyShell = () => {
 			>
 				<View style={styles.callRow}>
 					<Button
-						mode="contained"
+						mode="outlined"
 						onPress={handleCallSecurity}
-						buttonColor="#1B5E20"
-						textColor="#FFFFFF"
+						textColor="#1B5E20"
 						icon="phone"
-						style={styles.callButton}
+						style={[styles.callButton, styles.callSecurity]}
 						labelStyle={styles.callLabel}
 						contentStyle={styles.callContent}
 					>
@@ -416,6 +415,9 @@ const styles = StyleSheet.create({
 	callButton: {
 		flex: 1,
 		borderRadius: components.cardRadius,
+	},
+	callSecurity: {
+		borderColor: "#1B5E20",
 	},
 	call911: {
 		borderColor: "#D32F2F",

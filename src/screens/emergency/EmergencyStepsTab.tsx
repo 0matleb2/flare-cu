@@ -21,102 +21,99 @@ export const EmergencyStepsTab = () => {
 	};
 
 	const allDone = completed.size === steps.length;
+	const step = steps[currentStep];
 
 	return (
 		<View style={styles.container}>
-			{/* Progress indicator */}
+			{/* Progress bar segments */}
 			<View style={styles.progressRow}>
-				<Text style={styles.progressText}>
-					Step {currentStep + 1} of {steps.length}
-				</Text>
-				<View style={styles.dots}>
-					{steps.map((s, i) => (
-						<View
-							key={s.instruction}
-							style={[
-								styles.dot,
-								completed.has(i) && styles.dotComplete,
-								i === currentStep && styles.dotCurrent,
-							]}
-						/>
-					))}
-				</View>
+				{steps.map((s, i) => (
+					<View
+						key={s.instruction}
+						style={[
+							styles.progressSegment,
+							completed.has(i) && styles.progressComplete,
+							i === currentStep && styles.progressCurrent,
+						]}
+					/>
+				))}
 			</View>
 
-			{/* Steps list */}
+			<Text style={styles.stepLabel}>
+				Step {currentStep + 1} of {steps.length}
+			</Text>
+
 			<ScrollView
 				style={styles.scrollArea}
-				contentContainerStyle={styles.stepsContainer}
+				contentContainerStyle={styles.scrollContent}
 			>
-				{steps.map((step, i) => {
-					const isComplete = completed.has(i);
-					const isCurrent = i === currentStep;
-					const isFuture = i > currentStep && !isComplete;
+				{/* Current step card */}
+				{step && (
+					<View style={styles.stepCard}>
+						<Text style={styles.stepInstruction}>{step.instruction}</Text>
+						<Text style={styles.stepDetail}>{step.detail}</Text>
+					</View>
+				)}
 
-					return (
-						<View
-							key={step.instruction}
-							style={[
-								styles.stepCard,
-								isCurrent && styles.stepCurrent,
-								isComplete && styles.stepComplete,
-								isFuture && styles.stepFuture,
-							]}
-						>
-							<View style={styles.stepHeader}>
+				{/* All steps overview */}
+				<View style={styles.overviewSection}>
+					<Text style={styles.overviewTitle}>All steps</Text>
+					{steps.map((s, i) => {
+						const isDone = completed.has(i);
+						const isCurrent = i === currentStep;
+
+						return (
+							<View
+								key={s.instruction}
+								style={[styles.overviewRow, isDone && styles.overviewDone]}
+							>
 								<View
 									style={[
-										styles.badge,
-										isComplete && styles.badgeComplete,
-										isCurrent && styles.badgeCurrent,
+										styles.overviewBadge,
+										isDone && styles.overviewBadgeDone,
+										isCurrent && styles.overviewBadgeCurrent,
 									]}
 								>
 									<Text
 										style={[
-											styles.badgeText,
-											(isComplete || isCurrent) && styles.badgeTextLight,
+											styles.overviewBadgeText,
+											(isDone || isCurrent) && styles.overviewBadgeTextLight,
 										]}
 									>
-										{isComplete ? "✓" : i + 1}
+										{isDone ? "✓" : i + 1}
 									</Text>
 								</View>
 								<Text
 									style={[
-										styles.instruction,
-										isComplete && styles.instructionComplete,
-										isFuture && styles.instructionFuture,
+										styles.overviewText,
+										isDone && styles.overviewTextDone,
+										isCurrent && styles.overviewTextCurrent,
 									]}
+									numberOfLines={1}
 								>
-									{step.instruction}
+									{s.instruction}
 								</Text>
 							</View>
-							{(isCurrent || isComplete) && (
-								<Text
-									style={[styles.detail, isComplete && styles.detailComplete]}
-								>
-									{step.detail}
-								</Text>
-							)}
-						</View>
-					);
-				})}
+						);
+					})}
+				</View>
 			</ScrollView>
 
 			{/* Navigation buttons */}
-			<View style={styles.navRow}>
-				{currentStep > 0 && (
-					<Button
-						mode="outlined"
-						onPress={handlePrev}
-						textColor={colors.burgundy}
-						style={styles.navButton}
-						labelStyle={styles.navLabel}
-						contentStyle={styles.navContent}
-					>
-						Back
-					</Button>
-				)}
-				{!allDone && (
+			{!allDone && (
+				<View style={styles.navRow}>
+					{currentStep > 0 && (
+						<Button
+							mode="outlined"
+							onPress={handlePrev}
+							textColor={colors.burgundy}
+							style={styles.navButton}
+							labelStyle={styles.navLabel}
+							contentStyle={styles.navContent}
+						>
+							Previous
+						</Button>
+					)}
 					<Button
 						mode="contained"
 						onPress={handleNext}
@@ -131,92 +128,131 @@ export const EmergencyStepsTab = () => {
 					>
 						{currentStep === steps.length - 1 ? "Mark complete" : "Next step"}
 					</Button>
-				)}
-			</View>
+				</View>
+			)}
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
 	container: { flex: 1 },
+
+	// Progress bar (matches ActionPlan)
 	progressRow: {
 		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: spacing.sm,
+		gap: 4,
+		marginBottom: spacing.xs,
 	},
-	progressText: {
-		fontSize: typography.caption.fontSize,
-		fontWeight: typography.chip.fontWeight,
-		color: colors.textSecondary,
-	},
-	dots: { flexDirection: "row", gap: 6 },
-	dot: {
-		width: 10,
-		height: 10,
-		borderRadius: 5,
+	progressSegment: {
+		flex: 1,
+		height: 4,
+		borderRadius: 2,
 		backgroundColor: colors.border,
 	},
-	dotComplete: { backgroundColor: colors.statusSafe },
-	dotCurrent: {
+	progressComplete: {
 		backgroundColor: colors.burgundy,
-		width: 14,
-		height: 14,
-		borderRadius: 7,
+	},
+	progressCurrent: {
+		backgroundColor: colors.burgundy,
+		opacity: 0.5,
+	},
+
+	stepLabel: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+		marginBottom: spacing.sm,
 	},
 
 	scrollArea: { flex: 1 },
-	stepsContainer: { gap: spacing.sm, paddingBottom: spacing.md },
+	scrollContent: { gap: spacing.md, paddingBottom: spacing.md },
 
+	// Current step card (matches ActionPlan direction card)
 	stepCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
-		borderWidth: components.cardBorderWidth,
-		borderColor: colors.border,
-		padding: spacing.md,
+		borderWidth: 2,
+		borderColor: colors.burgundy,
+		padding: spacing.lg,
+		gap: spacing.sm,
+	},
+	stepInstruction: {
+		fontSize: 20,
+		fontWeight: "700",
+		color: colors.textPrimary,
+		lineHeight: 26,
+	},
+	stepDetail: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 22,
+	},
+
+	// Overview (matches ActionPlan)
+	overviewSection: {
 		gap: spacing.xs,
 	},
-	stepCurrent: {
-		borderColor: colors.burgundy,
-		borderWidth: 2,
-		backgroundColor: "#FFF8F0",
+	overviewTitle: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+		marginBottom: spacing.xs,
 	},
-	stepComplete: { opacity: 0.55 },
-	stepFuture: { opacity: 0.35 },
-
-	stepHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-	badge: {
-		width: 28,
-		height: 28,
-		borderRadius: 14,
+	overviewRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.sm,
+		paddingVertical: spacing.xs,
+	},
+	overviewDone: {
+		opacity: 0.5,
+	},
+	overviewBadge: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
 		backgroundColor: colors.border,
 		justifyContent: "center",
 		alignItems: "center",
 	},
-	badgeComplete: { backgroundColor: colors.statusSafe },
-	badgeCurrent: { backgroundColor: colors.burgundy },
-	badgeText: { fontSize: 14, fontWeight: "700", color: colors.textSecondary },
-	badgeTextLight: { color: "#FFFFFF" },
-
-	instruction: {
+	overviewBadgeDone: {
+		backgroundColor: colors.burgundy,
+	},
+	overviewBadgeCurrent: {
+		backgroundColor: colors.burgundy,
+	},
+	overviewBadgeText: {
+		fontSize: 12,
+		fontWeight: "700",
+		color: colors.textSecondary,
+	},
+	overviewBadgeTextLight: {
+		color: "#FFFFFF",
+	},
+	overviewText: {
 		flex: 1,
-		fontSize: typography.h2.fontSize,
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+	},
+	overviewTextDone: {
+		textDecorationLine: "line-through",
+	},
+	overviewTextCurrent: {
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
 	},
-	instructionComplete: { textDecorationLine: "line-through" },
-	instructionFuture: { color: colors.textSecondary },
 
-	detail: {
-		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
-		lineHeight: 20,
-		marginLeft: 36,
+	// Navigation (matches ActionPlan)
+	navRow: {
+		flexDirection: "row",
+		gap: spacing.sm,
+		marginTop: spacing.sm,
 	},
-	detailComplete: { textDecorationLine: "line-through" },
-
-	navRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-	navButton: { borderRadius: components.cardRadius, flex: 1 },
+	navButton: {
+		flex: 1,
+		borderRadius: components.cardRadius,
+	},
 	navContent: { minHeight: components.touchTarget },
 	navLabel: {
 		fontSize: typography.button.fontSize,
