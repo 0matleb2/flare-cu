@@ -235,7 +235,8 @@ export const EmergencyShell = () => {
 				>
 					{reportDone ? (
 						<View style={styles.reportDone}>
-							<Text style={styles.reportDoneTitle}>Reported</Text>
+							<Text style={styles.reportDoneEmoji}>✓</Text>
+							<Text style={styles.reportDoneTitle}>Flare raised</Text>
 							<Text style={styles.reportDoneBody}>
 								Thank you. Your report helps others stay safe.
 							</Text>
@@ -246,19 +247,24 @@ export const EmergencyShell = () => {
 								textColor="#FFFFFF"
 								style={styles.modalButton}
 								labelStyle={styles.modalButtonLabel}
+								contentStyle={styles.modalButtonContent}
 							>
 								Back to emergency
 							</Button>
 						</View>
 					) : (
 						<>
-							<Text style={styles.modalTitle}>Quick report</Text>
-							<Text style={styles.reportHint}>
-								Location:{" "}
-								{trigger?.flare?.location ?? "SGW Campus (auto-detected)"}
-							</Text>
+							<Text style={styles.modalTitle}>Raise a flare</Text>
 
-							<View style={styles.categoryRow}>
+							<View style={styles.reportLocationCard}>
+								<Text style={styles.reportLocationLabel}>Location</Text>
+								<Text style={styles.reportLocationValue}>
+									{trigger?.flare?.location ?? "SGW Campus (auto-detected)"}
+								</Text>
+							</View>
+
+							<Text style={styles.reportSectionLabel}>Category</Text>
+							<View style={styles.categoryGrid}>
 								{QUICK_CATS.map((c) => (
 									<Button
 										key={c.value}
@@ -288,10 +294,12 @@ export const EmergencyShell = () => {
 								outlineColor={colors.border}
 								activeOutlineColor={colors.burgundy}
 								multiline
+								right={<TextInput.Affix text={`${reportNote.length}/140`} />}
 							/>
 
 							<Button
 								mode="contained"
+								icon="fire"
 								onPress={handleQuickReport}
 								buttonColor={colors.burgundy}
 								textColor="#FFFFFF"
@@ -301,7 +309,7 @@ export const EmergencyShell = () => {
 								labelStyle={styles.modalButtonLabel}
 								contentStyle={styles.modalButtonContent}
 							>
-								Submit
+								Submit flare
 							</Button>
 						</>
 					)}
@@ -465,11 +473,31 @@ const styles = StyleSheet.create({
 	},
 
 	// Quick report
-	reportHint: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
+	reportLocationCard: {
+		backgroundColor: colors.background,
+		borderRadius: 8,
+		padding: spacing.sm,
+		gap: 2,
 	},
-	categoryRow: {
+	reportLocationLabel: {
+		fontSize: 11,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+	},
+	reportLocationValue: {
+		fontSize: typography.body.fontSize,
+		color: colors.textPrimary,
+	},
+	reportSectionLabel: {
+		fontSize: 11,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+	},
+	categoryGrid: {
 		flexDirection: "row",
 		flexWrap: "wrap",
 		gap: spacing.xs,
@@ -488,10 +516,14 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		gap: spacing.md,
 	},
+	reportDoneEmoji: {
+		fontSize: 40,
+		color: colors.burgundy,
+	},
 	reportDoneTitle: {
 		fontSize: 20,
 		fontWeight: "700",
-		color: colors.statusSafe,
+		color: colors.burgundy,
 	},
 	reportDoneBody: {
 		fontSize: typography.body.fontSize,
