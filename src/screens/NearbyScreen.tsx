@@ -1,5 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import {
+	FlatList,
+	RefreshControl,
+	StyleSheet,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { Button, FAB, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
@@ -14,7 +21,15 @@ import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 import type { CredibilityLevel, Flare } from "../types";
 
-// Feed sorting: verified first, then confirmed, reported, resolved last
+// ── Sort modes ──────────────────────────────────────────────
+type SortMode = "priority" | "nearest" | "recent";
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+	{ value: "priority", label: "Priority" },
+	{ value: "nearest", label: "Nearest" },
+	{ value: "recent", label: "Recent" },
+];
+
 const CREDIBILITY_PRIORITY: Record<CredibilityLevel, number> = {
 	verified: 0,
 	confirmed: 1,
@@ -22,33 +37,71 @@ const CREDIBILITY_PRIORITY: Record<CredibilityLevel, number> = {
 	resolved: 3,
 };
 
+// Simulated proximity scores (lower = closer). In a real app this
+// would be calculated from device GPS vs flare coordinates.
+const PROXIMITY_SCORE: Record<string, number> = {
+	"Hall Building": 1,
+	"EV Building": 2,
+	"LB Building": 3,
+	"GM Building": 4,
+	"MB Building": 5,
+	"CL Building": 6,
+	"FG Building": 7,
+	"Guy Street": 2,
+	"Webster Library": 3,
+};
+
+function sortFlares(flares: Flare[], mode: SortMode): Flare[] {
+	// Partition: resolved always last
+	const active = flares.filter((f) => f.credibility !== "resolved");
+	const resolved = flares.filter((f) => f.credibility === "resolved");
+
+	const sorted = [...active].sort((a, b) => {
+		switch (mode) {
+			case "priority": {
+				const diff =
+					CREDIBILITY_PRIORITY[a.credibility] -
+					CREDIBILITY_PRIORITY[b.credibility];
+				if (diff !== 0) return diff;
+				if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
+				return b.lastUpdated - a.lastUpdated;
+			}
+			case "nearest": {
+				const aDist = PROXIMITY_SCORE[a.building] ?? 10;
+				const bDist = PROXIMITY_SCORE[b.building] ?? 10;
+				if (aDist !== bDist) return aDist - bDist;
+				return b.lastUpdated - a.lastUpdated;
+			}
+			case "recent":
+				return b.lastUpdated - a.lastUpdated;
+			default:
+				return 0;
+		}
+	});
+
+	return [...sorted, ...resolved];
+}
+
 export const NearbyScreen = () => {
 	const { data: flares = [], isLoading, refetch } = useFlares();
 	const { data: prefs } = usePreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const insets = useSafeAreaInsets();
 	const { activate } = useEmergency();
-
-	const isOnline = prefs?.offlineCaching !== false;
 	const lowStim = useLowStim();
 
+	const isOnline = prefs?.offlineCaching !== false;
+	const [sortMode, setSortMode] = useState<SortMode>("priority");
+
 	// Filter: hide unconfirmed in low intensity
-	const feedFlares = flares
-		.filter((f) => {
+	const feedFlares = sortFlares(
+		flares.filter((f) => {
 			if (prefs?.alertIntensity === "low" && f.credibility === "reported")
 				return false;
 			return true;
-		})
-		// Sort by credibility priority, then by upvotes within same tier
-		.sort((a, b) => {
-			const diff =
-				CREDIBILITY_PRIORITY[a.credibility] -
-				CREDIBILITY_PRIORITY[b.credibility];
-			if (diff !== 0) return diff;
-			// Within same credibility, most upvoted first
-			if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
-			return b.lastUpdated - a.lastUpdated;
-		});
+		}),
+		sortMode,
+	);
 
 	const syncTimeStr = new Date().toLocaleTimeString([], {
 		hour: "2-digit",
@@ -86,6 +139,30 @@ export const NearbyScreen = () => {
 					lastSync={syncTimeStr}
 					lowStim={lowStim}
 				/>
+
+				{/* Sort chips */}
+				<View style={styles.sortRow}>
+					{SORT_OPTIONS.map((opt) => {
+						const isActive = sortMode === opt.value;
+						return (
+							<TouchableOpacity
+								key={opt.value}
+								style={[styles.sortChip, isActive && styles.sortChipActive]}
+								onPress={() => setSortMode(opt.value)}
+								activeOpacity={0.7}
+							>
+								<Text
+									style={[
+										styles.sortChipText,
+										isActive && styles.sortChipTextActive,
+									]}
+								>
+									{opt.label}
+								</Text>
+							</TouchableOpacity>
+						);
+					})}
+				</View>
 			</View>
 
 			{/* Offline banner */}
@@ -141,6 +218,33 @@ const styles = StyleSheet.create({
 	emergencyLabel: {
 		fontSize: typography.caption.fontSize,
 	},
+
+	// Sort chips
+	sortRow: {
+		flexDirection: "row",
+		gap: spacing.xs,
+	},
+	sortChip: {
+		paddingHorizontal: spacing.md,
+		paddingVertical: 6,
+		borderRadius: 20,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.surface,
+	},
+	sortChipActive: {
+		borderColor: colors.burgundy,
+		backgroundColor: `${colors.burgundy}0F`,
+	},
+	sortChipText: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: "600",
+		color: colors.textSecondary,
+	},
+	sortChipTextActive: {
+		color: colors.burgundy,
+	},
+
 	list: {
 		paddingHorizontal: components.screenPaddingH,
 		paddingBottom: 100,
