@@ -63,7 +63,9 @@ export const FlareDetailScreen = () => {
 					icon={flare.savedByUser ? "bookmark" : "bookmark-outline"}
 					iconColor={flare.savedByUser ? colors.burgundy : colors.textSecondary}
 					size={24}
-					onPress={() => saveFlare.mutate(flare.id)}
+					onPress={() =>
+						saveFlare.mutate({ id: flare.id, wasSaved: flare.savedByUser })
+					}
 					disabled={saveFlare.isPending}
 				/>
 			</View>
