@@ -16,7 +16,7 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 	const [alertIntensity, setAlertIntensity] = useState<string>("medium");
 
 	const handleContinue = () => {
-		// In a real app, save preferences here
+		// In a real app, save preferences here via PreferencesService
 		onComplete?.();
 	};
 
@@ -24,7 +24,7 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
 			<Text style={styles.title}>Quick setup</Text>
 			<Text style={styles.subtitle}>
-				Customize your experience. You can change these anytime.
+				Customize your experience. You can change these anytime in Settings.
 			</Text>
 
 			<View style={styles.settings}>
@@ -32,6 +32,9 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 				<View style={styles.row}>
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Mobility-friendly guidance</Text>
+						<Text style={styles.hint}>
+							Prioritizes ramps and elevator routes
+						</Text>
 					</View>
 					<Switch
 						value={mobilityFriendly}
@@ -44,6 +47,9 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 				<View style={styles.row}>
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Low stimulation mode</Text>
+						<Text style={styles.hint}>
+							Reduces motion and simplifies alerts
+						</Text>
 					</View>
 					<Switch
 						value={lowStimulation}
@@ -55,6 +61,9 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 				{/* Alert intensity */}
 				<View style={styles.segmentSection}>
 					<Text style={styles.label}>Alerts intensity</Text>
+					<Text style={styles.hint}>
+						Low: fewer alerts · Medium: all relevant alerts
+					</Text>
 					<SegmentedButtons
 						value={alertIntensity}
 						onValueChange={setAlertIntensity}
@@ -78,6 +87,14 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 					style={styles.button}
 				>
 					Continue
+				</Button>
+				<Button
+					mode="text"
+					onPress={handleContinue}
+					textColor={colors.textSecondary}
+					labelStyle={styles.skipLabel}
+				>
+					Skip for now
 				</Button>
 			</View>
 		</View>
@@ -114,20 +131,27 @@ const styles = StyleSheet.create({
 	rowText: {
 		flex: 1,
 		marginRight: spacing.base,
+		gap: 2,
 	},
 	label: {
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
 	},
+	hint: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+	},
 	segmentSection: {
-		gap: spacing.sm,
+		gap: spacing.xs,
 	},
 	segmented: {
 		alignSelf: "flex-start",
+		marginTop: spacing.xs,
 	},
 	footer: {
 		paddingBottom: spacing.xl,
+		gap: spacing.sm,
 	},
 	button: {
 		borderRadius: components.cardRadius,
@@ -138,5 +162,8 @@ const styles = StyleSheet.create({
 	buttonLabel: {
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
+	},
+	skipLabel: {
+		fontSize: typography.body.fontSize,
 	},
 });

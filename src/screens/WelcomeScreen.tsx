@@ -5,7 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { WelcomeScreenNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
-export const WelcomeScreen = () => {
+interface WelcomeScreenProps {
+	onGuestAccess?: () => void;
+}
+
+export const WelcomeScreen = ({ onGuestAccess }: WelcomeScreenProps) => {
 	const navigation = useNavigation<WelcomeScreenNavProp>();
 	const insets = useSafeAreaInsets();
 
@@ -30,7 +34,13 @@ export const WelcomeScreen = () => {
 				</Button>
 				<Button
 					mode="outlined"
-					onPress={() => navigation.navigate("Preferences")}
+					onPress={() => {
+						if (onGuestAccess) {
+							onGuestAccess();
+						} else {
+							navigation.navigate("Preferences");
+						}
+					}}
 					textColor={colors.burgundy}
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}

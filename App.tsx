@@ -10,7 +10,6 @@ import type {
 	AuthStackParamList,
 	MainTabParamList,
 	NearbyStackParamList,
-	RootStackParamList,
 	RouteStackParamList,
 } from "./src/navigation/types";
 // Screens – Nearby stack
@@ -34,7 +33,6 @@ import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 
 import { colors, theme } from "./src/theme";
 
-const _RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const NearbyStack = createNativeStackNavigator<NearbyStackParamList>();
@@ -63,6 +61,7 @@ function RouteStackNavigator() {
 		<RouteStack.Navigator screenOptions={{ headerShown: false }}>
 			<RouteStack.Screen name="RouteSetup" component={RouteSetupScreen} />
 			<RouteStack.Screen name="RouteResults" component={RouteResultsScreen} />
+			<RouteStack.Screen name="RouteActionPlan" component={ActionPlanScreen} />
 		</RouteStack.Navigator>
 	);
 }
@@ -108,7 +107,9 @@ function MainTabs() {
 function AuthFlow({ onComplete }: { onComplete: () => void }) {
 	return (
 		<AuthStack.Navigator screenOptions={{ headerShown: false }}>
-			<AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+			<AuthStack.Screen name="Welcome">
+				{(props) => <WelcomeScreen {...props} onGuestAccess={onComplete} />}
+			</AuthStack.Screen>
 			<AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
 			<AuthStack.Screen name="Preferences">
 				{(props) => <PreferencesScreen {...props} onComplete={onComplete} />}

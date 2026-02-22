@@ -5,12 +5,13 @@ import { Button, Divider, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { ProgressBar } from "../components/ProgressBar";
-import { useFlares } from "../hooks/useFlares";
+import { useFlares, useSaveFlare } from "../hooks/useFlares";
 import type {
 	FlareDetailNavProp,
 	NearbyStackParamList,
 } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
+import type { FlareCategory } from "../types";
 
 type FlareDetailRoute = RouteProp<NearbyStackParamList, "FlareDetail">;
 
@@ -24,11 +25,24 @@ function timeAgo(ms: number): string {
 	return `${Math.floor(hours / 24)}d ago`;
 }
 
+// Dynamic recommended actions based on category (3.8, 3.9)
+const CATEGORY_ACTIONS: Record<
+	FlareCategory,
+	{ primary: string; secondary: string }
+> = {
+	blocked_entrance: { primary: "Avoid this entrance", secondary: "Recheck" },
+	dense_crowd: { primary: "Reroute", secondary: "Recheck" },
+	access_restriction: { primary: "Go indoors", secondary: "Recheck" },
+	construction: { primary: "Avoid this area", secondary: "Recheck" },
+	other: { primary: "Wait for updates", secondary: "Recheck" },
+};
+
 export const FlareDetailScreen = () => {
 	const route = useRoute<FlareDetailRoute>();
 	const navigation = useNavigation<FlareDetailNavProp>();
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
+	const saveFlare = useSaveFlare();
 
 	const flare = flares.find((f) => f.id === route.params.flareId);
 
@@ -42,6 +56,8 @@ export const FlareDetailScreen = () => {
 			</View>
 		);
 	}
+
+	const actions = CATEGORY_ACTIONS[flare.category];
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -74,7 +90,7 @@ export const FlareDetailScreen = () => {
 					<ProgressBar currentLevel={flare.credibility} showLabels />
 				</View>
 
-				{/* Recommended action panel */}
+				{/* Recommended action panel — dynamic per category */}
 				<View style={styles.card}>
 					<Text style={styles.sectionTitle}>Recommended action</Text>
 					<View style={styles.actionButtons}>
@@ -86,7 +102,7 @@ export const FlareDetailScreen = () => {
 							contentStyle={styles.buttonContent}
 							style={styles.primaryButton}
 						>
-							Avoid this area
+							{actions.primary}
 						</Button>
 						<Button
 							mode="outlined"
@@ -95,7 +111,7 @@ export const FlareDetailScreen = () => {
 							contentStyle={styles.buttonContent}
 							style={styles.outlineButton}
 						>
-							Recheck
+							{actions.secondary}
 						</Button>
 					</View>
 					<Button
@@ -127,11 +143,13 @@ export const FlareDetailScreen = () => {
 					<Button
 						mode="text"
 						textColor={colors.burgundy}
-						icon="bookmark-outline"
+						icon={flare.savedByUser ? "bookmark" : "bookmark-outline"}
 						compact
 						labelStyle={styles.smallLabel}
+						onPress={() => saveFlare.mutate(flare.id)}
+						disabled={saveFlare.isPending}
 					>
-						Save flare
+						{flare.savedByUser ? "Saved" : "Save flare"}
 					</Button>
 					<Button
 						mode="text"

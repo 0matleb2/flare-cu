@@ -1,6 +1,6 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +14,8 @@ import type { FlareCategory } from "../types";
 
 type Step3Route = RouteProp<NearbyStackParamList, "ReportStep3">;
 
+const RETRACT_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
 export const ReportStep3Screen = () => {
 	const navigation = useNavigation<ReportStep3NavProp>();
 	const route = useRoute<Step3Route>();
@@ -22,6 +24,21 @@ export const ReportStep3Screen = () => {
 
 	const [note, setNote] = useState("");
 	const [submitted, setSubmitted] = useState(false);
+	const [retractable, setRetractable] = useState(true);
+	const [retracted, setRetracted] = useState(false);
+	const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+
+	// Auto-expire retract window
+	useEffect(() => {
+		if (!submittedAt) return;
+		const remaining = RETRACT_WINDOW_MS - (Date.now() - submittedAt);
+		if (remaining <= 0) {
+			setRetractable(false);
+			return;
+		}
+		const timer = setTimeout(() => setRetractable(false), remaining);
+		return () => clearTimeout(timer);
+	}, [submittedAt]);
 
 	const handleSubmit = () => {
 		createFlare.mutate(
@@ -32,22 +49,56 @@ export const ReportStep3Screen = () => {
 				note: note || undefined,
 			},
 			{
-				onSuccess: () => setSubmitted(true),
+				onSuccess: () => {
+					setSubmitted(true);
+					setSubmittedAt(Date.now());
+				},
 			},
 		);
+	};
+
+	const handleRetract = () => {
+		// In a real app, this would delete the flare
+		setRetracted(true);
+		setRetractable(false);
 	};
 
 	if (submitted) {
 		return (
 			<View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
 				<View style={styles.successContent}>
-					<Text style={styles.successTitle}>Submitted</Text>
-					<Text style={styles.successBody}>
-						Your flare has been submitted. Thank you for helping the community.
-					</Text>
-					<Text style={styles.retractNote}>
-						You can retract within 2 minutes.
-					</Text>
+					{retracted ? (
+						<>
+							<Text style={styles.retractedTitle}>Retracted</Text>
+							<Text style={styles.successBody}>
+								Your flare has been retracted.
+							</Text>
+						</>
+					) : (
+						<>
+							<Text style={styles.successTitle}>Submitted</Text>
+							<Text style={styles.successBody}>
+								Your flare has been submitted. Thank you for helping the
+								community.
+							</Text>
+							{retractable && (
+								<Button
+									mode="outlined"
+									onPress={handleRetract}
+									textColor={colors.statusCaution}
+									style={styles.retractButton}
+									labelStyle={styles.retractLabel}
+								>
+									Retract report
+								</Button>
+							)}
+							<Text style={styles.retractNote}>
+								{retractable
+									? "You can retract within 2 minutes."
+									: "Retract window has expired."}
+							</Text>
+						</>
+					)}
 				</View>
 
 				<Button
@@ -167,10 +218,24 @@ const styles = StyleSheet.create({
 		fontWeight: "700",
 		color: colors.statusSafe,
 	},
+	retractedTitle: {
+		fontSize: 24,
+		fontWeight: "700",
+		color: colors.textSecondary,
+	},
 	successBody: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
 		textAlign: "center",
+	},
+	retractButton: {
+		borderColor: colors.statusCaution,
+		borderRadius: components.cardRadius,
+		marginTop: spacing.sm,
+	},
+	retractLabel: {
+		fontSize: typography.body.fontSize,
+		fontWeight: typography.button.fontWeight,
 	},
 	retractNote: {
 		fontSize: typography.caption.fontSize,
