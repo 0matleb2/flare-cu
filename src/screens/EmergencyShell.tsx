@@ -1,6 +1,6 @@
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Linking, StyleSheet, View } from "react-native";
 import { Button, Modal, Portal, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
@@ -134,12 +134,9 @@ export const EmergencyShell = () => {
 				</Tab.Screen>
 				<Tab.Screen name="Updates">
 					{() => (
-						<ScrollView
-							style={styles.tabScrollContent}
-							contentContainerStyle={styles.tabScrollInner}
-						>
+						<View style={styles.tabContent}>
 							<EmergencyUpdatesTab />
-						</ScrollView>
+						</View>
 					)}
 				</Tab.Screen>
 			</Tab.Navigator>
