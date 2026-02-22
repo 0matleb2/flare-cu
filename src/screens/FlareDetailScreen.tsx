@@ -123,7 +123,7 @@ export const FlareDetailScreen = () => {
 						navigation.navigate("ActionPlan", { planId: flare.id })
 					}
 				>
-					Start action plan
+					Respond to flare
 				</Button>
 
 				{/* ═══ Timeline + credibility progression ═══ */}
