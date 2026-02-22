@@ -8,6 +8,7 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { StatusRow } from "../components/StatusRow";
 import { useEmergency } from "../context/EmergencyContext";
 import { useFlares } from "../hooks/useFlares";
+import { useLowStim } from "../hooks/useLowStim";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
@@ -29,6 +30,7 @@ export const NearbyScreen = () => {
 	const { activate } = useEmergency();
 
 	const isOnline = prefs?.offlineCaching !== false;
+	const lowStim = useLowStim();
 
 	// Filter: hide unconfirmed in low intensity
 	const feedFlares = flares
@@ -57,6 +59,7 @@ export const NearbyScreen = () => {
 		<FlareCard
 			flare={item}
 			onPress={() => navigation.navigate("FlareDetail", { flareId: item.id })}
+			lowStim={lowStim}
 		/>
 	);
 
@@ -81,6 +84,7 @@ export const NearbyScreen = () => {
 					isOnline={isOnline}
 					locationOn={true}
 					lastSync={syncTimeStr}
+					lowStim={lowStim}
 				/>
 			</View>
 

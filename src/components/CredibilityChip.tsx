@@ -11,15 +11,29 @@ const CHIP_COLORS: Record<CredibilityLevel, string> = {
 	resolved: colors.credResolved,
 };
 
+// Low-stim: muted gray tones instead of colored
+const CHIP_COLORS_MUTED: Record<CredibilityLevel, string> = {
+	reported: colors.textDisabled,
+	confirmed: colors.textSecondary,
+	verified: colors.textSecondary,
+	resolved: colors.textDisabled,
+};
+
 interface CredibilityChipProps {
 	level: CredibilityLevel;
+	lowStim?: boolean;
 }
 
-export const CredibilityChip = ({ level }: CredibilityChipProps) => {
-	const color = CHIP_COLORS[level];
+export const CredibilityChip = ({ level, lowStim }: CredibilityChipProps) => {
+	const color = lowStim ? CHIP_COLORS_MUTED[level] : CHIP_COLORS[level];
 
 	return (
-		<View style={[styles.chip, { backgroundColor: `${color}14` }]}>
+		<View
+			style={[
+				styles.chip,
+				{ backgroundColor: lowStim ? `${color}0A` : `${color}14` },
+			]}
+		>
 			<View style={[styles.dot, { backgroundColor: color }]} />
 			<Text style={[styles.label, { color }]}>{CREDIBILITY_LABELS[level]}</Text>
 		</View>

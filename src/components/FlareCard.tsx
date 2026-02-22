@@ -8,6 +8,7 @@ import { CredibilityChip } from "./CredibilityChip";
 interface FlareCardProps {
 	flare: Flare;
 	onPress: () => void;
+	lowStim?: boolean;
 }
 
 function timeAgo(ms: number): string {
@@ -20,7 +21,7 @@ function timeAgo(ms: number): string {
 	return `${Math.floor(hours / 24)}d ago`;
 }
 
-export const FlareCard = ({ flare, onPress }: FlareCardProps) => {
+export const FlareCard = ({ flare, onPress, lowStim }: FlareCardProps) => {
 	return (
 		<TouchableOpacity
 			style={styles.card}
@@ -32,7 +33,7 @@ export const FlareCard = ({ flare, onPress }: FlareCardProps) => {
 			{/* Category + credibility row */}
 			<View style={styles.topRow}>
 				<Text style={styles.category}>{CATEGORY_LABELS[flare.category]}</Text>
-				<CredibilityChip level={flare.credibility} />
+				<CredibilityChip level={flare.credibility} lowStim={lowStim} />
 			</View>
 
 			{/* Summary */}

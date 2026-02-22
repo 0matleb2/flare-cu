@@ -1,11 +1,13 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { useEmergency } from "../context/EmergencyContext";
 import { useFlares, useSaveFlare, useUpvoteFlare } from "../hooks/useFlares";
+import { useLowStim } from "../hooks/useLowStim";
 import type {
 	FlareDetailNavProp,
 	NearbyStackParamList,
@@ -34,6 +36,8 @@ export const FlareDetailScreen = () => {
 	const saveFlare = useSaveFlare();
 	const upvoteFlare = useUpvoteFlare();
 	const { activate: activateEmergency } = useEmergency();
+	const lowStim = useLowStim();
+	const [timelineExpanded, setTimelineExpanded] = useState(!lowStim);
 
 	const flare = flares.find((f) => f.id === route.params.flareId);
 
@@ -78,7 +82,7 @@ export const FlareDetailScreen = () => {
 						<Text style={styles.heroCategory}>
 							{CATEGORY_LABELS[flare.category]}
 						</Text>
-						<CredibilityChip level={flare.credibility} />
+						<CredibilityChip level={flare.credibility} lowStim={lowStim} />
 					</View>
 					<Text style={styles.heroSummary}>{flare.summary}</Text>
 					<View style={styles.heroMeta}>
@@ -128,29 +132,44 @@ export const FlareDetailScreen = () => {
 
 				{/* ═══ Timeline + credibility progression ═══ */}
 				<View style={styles.card}>
-					<Text style={styles.sectionTitle}>Timeline</Text>
-					{/* Actual timeline entries */}
-					{flare.timeline.map((entry, i) => (
-						<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
-							<View style={[styles.timelineDot, styles.timelineDotDone]} />
-							<Text style={styles.timelineTime}>{entry.time}</Text>
-							<Text style={styles.timelineLabel}>{entry.label}</Text>
-						</View>
-					))}
-					{/* Future credibility steps (greyed out) */}
-					{CREDIBILITY_STEPS.filter((step: CredibilityLevel) => {
-						const currentIdx = CREDIBILITY_STEPS.indexOf(flare.credibility);
-						const stepIdx = CREDIBILITY_STEPS.indexOf(step);
-						return stepIdx > currentIdx;
-					}).map((step: CredibilityLevel) => (
-						<View key={step} style={styles.timelineRow}>
-							<View style={[styles.timelineDot, styles.timelineDotPending]} />
-							<Text style={styles.timelineTimePending}>—</Text>
-							<Text style={styles.timelineLabelPending}>
-								{step.charAt(0).toUpperCase() + step.slice(1)}
-							</Text>
-						</View>
-					))}
+					<TouchableOpacity
+						style={styles.timelineHeader}
+						onPress={() => setTimelineExpanded((p) => !p)}
+						activeOpacity={0.7}
+					>
+						<Text style={styles.sectionTitle}>Timeline</Text>
+						<Text style={styles.timelineToggle}>
+							{timelineExpanded ? "Hide" : "View"}
+						</Text>
+					</TouchableOpacity>
+					{timelineExpanded && (
+						<>
+							{/* Actual timeline entries */}
+							{flare.timeline.map((entry, i) => (
+								<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
+									<View style={[styles.timelineDot, styles.timelineDotDone]} />
+									<Text style={styles.timelineTime}>{entry.time}</Text>
+									<Text style={styles.timelineLabel}>{entry.label}</Text>
+								</View>
+							))}
+							{/* Future credibility steps (greyed out) */}
+							{CREDIBILITY_STEPS.filter((step: CredibilityLevel) => {
+								const currentIdx = CREDIBILITY_STEPS.indexOf(flare.credibility);
+								const stepIdx = CREDIBILITY_STEPS.indexOf(step);
+								return stepIdx > currentIdx;
+							}).map((step: CredibilityLevel) => (
+								<View key={step} style={styles.timelineRow}>
+									<View
+										style={[styles.timelineDot, styles.timelineDotPending]}
+									/>
+									<Text style={styles.timelineTimePending}>—</Text>
+									<Text style={styles.timelineLabelPending}>
+										{step.charAt(0).toUpperCase() + step.slice(1)}
+									</Text>
+								</View>
+							))}
+						</>
+					)}
 				</View>
 
 				{/* ═══ Emergency — small text link at very bottom ═══ */}
@@ -280,6 +299,16 @@ const styles = StyleSheet.create({
 		fontSize: typography.h2.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
+	},
+	timelineHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+	},
+	timelineToggle: {
+		fontSize: typography.caption.fontSize,
+		color: colors.burgundy,
+		fontWeight: "600",
 	},
 
 	// Action

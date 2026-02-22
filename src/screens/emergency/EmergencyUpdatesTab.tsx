@@ -4,6 +4,7 @@ import { Button, Text } from "react-native-paper";
 import { CredibilityChip } from "../../components/CredibilityChip";
 import { useEmergency } from "../../context/EmergencyContext";
 import { useFlares } from "../../hooks/useFlares";
+import { useLowStim } from "../../hooks/useLowStim";
 import { usePreferences } from "../../hooks/usePreferences";
 import { colors, components, spacing, typography } from "../../theme";
 import type { Flare, TimelineEntry } from "../../types";
@@ -21,6 +22,7 @@ export const EmergencyUpdatesTab = () => {
 	const { trigger } = useEmergency();
 	const { data: flares = [], refetch, isLoading } = useFlares();
 	const { data: prefs } = usePreferences();
+	const lowStim = useLowStim();
 	const [lastChecked, setLastChecked] = useState<string | null>(null);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -99,7 +101,7 @@ export const EmergencyUpdatesTab = () => {
 				>
 					<Text style={styles.cardTitle}>Triggering flare</Text>
 					<View style={styles.statusRow}>
-						<CredibilityChip level={liveFlare.credibility} />
+						<CredibilityChip level={liveFlare.credibility} lowStim={lowStim} />
 						<Text style={styles.timestamp}>
 							{timeAgo(liveFlare.lastUpdated)}
 						</Text>
@@ -161,7 +163,7 @@ export const EmergencyUpdatesTab = () => {
 								onPress={() => toggleExpand(f.id)}
 							>
 								<View style={styles.miniRow}>
-									<CredibilityChip level={f.credibility} />
+									<CredibilityChip level={f.credibility} lowStim={lowStim} />
 									<Text style={styles.timestamp}>{timeAgo(f.lastUpdated)}</Text>
 								</View>
 								<Text

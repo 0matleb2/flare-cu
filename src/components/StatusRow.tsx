@@ -6,12 +6,14 @@ interface StatusRowProps {
 	isOnline: boolean;
 	locationOn: boolean;
 	lastSync?: string;
+	lowStim?: boolean;
 }
 
 export const StatusRow = ({
 	isOnline,
 	locationOn,
 	lastSync,
+	lowStim,
 }: StatusRowProps) => {
 	return (
 		<View style={styles.container}>
@@ -32,8 +34,10 @@ export const StatusRow = ({
 				<Text style={styles.pillText}>{isOnline ? "Online" : "Offline"}</Text>
 			</View>
 
-			{/* Location indicator */}
-			{locationOn && <Text style={styles.locationText}>📍 SGW Campus</Text>}
+			{/* Location indicator — hidden in low-stim */}
+			{locationOn && !lowStim && (
+				<Text style={styles.locationText}>📍 SGW Campus</Text>
+			)}
 
 			{/* Last sync — only shown when offline */}
 			{!isOnline && lastSync && (
