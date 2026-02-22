@@ -8,7 +8,6 @@ import { CredibilityChip } from "./CredibilityChip";
 interface FlareCardProps {
 	flare: Flare;
 	onPress: () => void;
-	onUpvote?: (id: string) => void;
 }
 
 function timeAgo(ms: number): string {
@@ -21,9 +20,7 @@ function timeAgo(ms: number): string {
 	return `${Math.floor(hours / 24)}d ago`;
 }
 
-export const FlareCard = ({ flare, onPress, onUpvote }: FlareCardProps) => {
-	const showUpvote = flare.credibility !== "resolved";
-
+export const FlareCard = ({ flare, onPress }: FlareCardProps) => {
 	return (
 		<TouchableOpacity
 			style={styles.card}
@@ -43,46 +40,12 @@ export const FlareCard = ({ flare, onPress, onUpvote }: FlareCardProps) => {
 				{flare.summary}
 			</Text>
 
-			{/* Bottom row: location + time + upvote */}
+			{/* Location + time */}
 			<View style={styles.bottomRow}>
-				<View style={styles.metaGroup}>
-					<Text style={styles.location} numberOfLines={1}>
-						{flare.location}
-					</Text>
-					<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
-				</View>
-
-				{showUpvote && (
-					<TouchableOpacity
-						style={[
-							styles.upvoteButton,
-							flare.upvotedByUser && styles.upvoteActive,
-						]}
-						onPress={(e) => {
-							e.stopPropagation();
-							onUpvote?.(flare.id);
-						}}
-						activeOpacity={0.6}
-						hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-					>
-						<Text
-							style={[
-								styles.upvoteIcon,
-								flare.upvotedByUser && styles.upvoteIconActive,
-							]}
-						>
-							▲
-						</Text>
-						<Text
-							style={[
-								styles.upvoteCount,
-								flare.upvotedByUser && styles.upvoteCountActive,
-							]}
-						>
-							{flare.upvotes}
-						</Text>
-					</TouchableOpacity>
-				)}
+				<Text style={styles.location} numberOfLines={1}>
+					{flare.location}
+				</Text>
+				<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
 			</View>
 		</TouchableOpacity>
 	);
@@ -119,52 +82,14 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		marginTop: spacing.xs,
 	},
-	metaGroup: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		marginRight: spacing.sm,
-	},
 	location: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textDisabled,
 		flex: 1,
+		marginRight: spacing.sm,
 	},
 	timestamp: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textDisabled,
-	},
-
-	// Upvote button
-	upvoteButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 4,
-		paddingHorizontal: spacing.sm,
-		paddingVertical: 4,
-		borderRadius: 14,
-		borderWidth: 1,
-		borderColor: colors.border,
-		backgroundColor: colors.background,
-	},
-	upvoteActive: {
-		borderColor: colors.burgundy,
-		backgroundColor: `${colors.burgundy}0F`,
-	},
-	upvoteIcon: {
-		fontSize: 10,
-		color: colors.textDisabled,
-	},
-	upvoteIconActive: {
-		color: colors.burgundy,
-	},
-	upvoteCount: {
-		fontSize: 13,
-		fontWeight: "700",
-		color: colors.textSecondary,
-	},
-	upvoteCountActive: {
-		color: colors.burgundy,
 	},
 });

@@ -100,8 +100,7 @@ export const FlareDetailScreen = () => {
 								labelStyle={styles.upvoteLabel}
 								compact
 							>
-								{flare.upvotedByUser ? "Confirmed" : "Confirm"} ·{" "}
-								{flare.upvotes}
+								{flare.upvotedByUser ? "Confirmed" : "Confirm"}
 							</Button>
 							<Text style={styles.upvoteHint}>
 								{flare.upvotes} {flare.upvotes === 1 ? "person" : "people"}{" "}

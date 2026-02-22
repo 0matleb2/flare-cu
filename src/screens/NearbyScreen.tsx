@@ -7,7 +7,7 @@ import { FlareCard } from "../components/FlareCard";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { StatusRow } from "../components/StatusRow";
 import { useEmergency } from "../context/EmergencyContext";
-import { useFlares, useUpvoteFlare } from "../hooks/useFlares";
+import { useFlares } from "../hooks/useFlares";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
@@ -53,13 +53,10 @@ export const NearbyScreen = () => {
 		minute: "2-digit",
 	});
 
-	const upvoteFlare = useUpvoteFlare();
-
 	const renderItem = ({ item }: { item: Flare }) => (
 		<FlareCard
 			flare={item}
 			onPress={() => navigation.navigate("FlareDetail", { flareId: item.id })}
-			onUpvote={(id) => upvoteFlare.mutate(id)}
 		/>
 	);
 

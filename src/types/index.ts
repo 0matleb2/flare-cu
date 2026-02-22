@@ -36,7 +36,7 @@ export interface Flare {
 }
 
 // Number of upvotes needed to auto-promote from reported → confirmed
-export const CONFIRM_THRESHOLD = 5;
+export const CONFIRM_THRESHOLD = 10;
 
 // ── Category Helpers ─────────────────────────────────────────
 

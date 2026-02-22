@@ -24,7 +24,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "09:55", label: "Verified" },
 		],
 		savedByUser: false,
-		upvotes: 14,
+		upvotes: 18,
 		upvotedByUser: false,
 	},
 	{
@@ -42,7 +42,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "08:30", label: "Verified" },
 		],
 		savedByUser: true,
-		upvotes: 12,
+		upvotes: 16,
 		upvotedByUser: true,
 	},
 	{
@@ -62,7 +62,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "07:45", label: "Verified" },
 		],
 		savedByUser: false,
-		upvotes: 15,
+		upvotes: 21,
 		upvotedByUser: false,
 	},
 
@@ -82,7 +82,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:12", label: "Confirmed" },
 		],
 		savedByUser: false,
-		upvotes: 7,
+		upvotes: 14,
 		upvotedByUser: false,
 	},
 	{
@@ -100,7 +100,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:25", label: "Confirmed" },
 		],
 		savedByUser: false,
-		upvotes: 6,
+		upvotes: 11,
 		upvotedByUser: false,
 	},
 	{
@@ -118,7 +118,7 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:28", label: "Confirmed" },
 		],
 		savedByUser: false,
-		upvotes: 5,
+		upvotes: 10,
 		upvotedByUser: true,
 	},
 
@@ -135,7 +135,7 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 5,
 		timeline: [{ time: "10:37", label: "Reported" }],
 		savedByUser: false,
-		upvotes: 3,
+		upvotes: 4,
 		upvotedByUser: false,
 	},
 	{
@@ -165,7 +165,7 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 3,
 		timeline: [{ time: "10:39", label: "Reported" }],
 		savedByUser: false,
-		upvotes: 2,
+		upvotes: 3,
 		upvotedByUser: true,
 	},
 	{
@@ -179,7 +179,7 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 8,
 		timeline: [{ time: "10:34", label: "Reported" }],
 		savedByUser: false,
-		upvotes: 0,
+		upvotes: 1,
 		upvotedByUser: false,
 	},
 
@@ -278,7 +278,7 @@ export const FlareService = {
 			timeline: [{ time: timeStr, label: "Reported" }],
 			savedByUser: false,
 			note: data.note,
-			upvotes: 0,
+			upvotes: 1,
 			upvotedByUser: false,
 		};
 
