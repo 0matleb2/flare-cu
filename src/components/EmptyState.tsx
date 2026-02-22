@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
+import { colors, spacing, typography } from "../theme";
 
 interface EmptyStateProps {
 	message?: string;
@@ -17,12 +18,13 @@ export const EmptyState = ({
 
 const styles = StyleSheet.create({
 	container: {
-		padding: 32,
+		padding: spacing.xl,
 		alignItems: "center",
 		justifyContent: "center",
 	},
 	text: {
 		textAlign: "center",
-		opacity: 0.6,
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
 	},
 });

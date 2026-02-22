@@ -1,130 +1,119 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Flare } from "../types";
+import type { Flare, FlareCategory } from "../types";
 
-const STORAGE_KEY = "@flare_cu_flares";
-const SIMULATED_DELAY_MS = 800;
+const STORAGE_KEY = "@flare_cu_flares_v2";
+const QUEUE_KEY = "@flare_cu_offline_queue";
+const SIMULATED_DELAY_MS = 600;
 
 const INITIAL_FLARES: Flare[] = [
-	// SGW Campus - Hall Building
 	{
 		id: "1",
-		type: "safety",
-		location: "Hall Building, 8th Floor Escalators",
-		description: "Escalator stopped suddenly, potential trip hazard.",
-		timestamp: Date.now() - 1000 * 60 * 15, // 15 mins ago
-		status: "active",
-		confirmations: 3,
+		category: "blocked_entrance",
+		credibility: "confirmed",
+		summary: "Main entrance blocked due to delivery truck.",
+		location: "Hall Building, Main Entrance on de Maisonneuve",
+		building: "Hall Building",
+		entrance: "Main Entrance",
+		timestamp: Date.now() - 1000 * 60 * 15,
+		lastUpdated: Date.now() - 1000 * 60 * 8,
+		timeline: [
+			{ time: "10:05", label: "Reported" },
+			{ time: "10:12", label: "Confirmed" },
+		],
+		savedByUser: false,
+	},
+	{
+		id: "2",
+		category: "dense_crowd",
+		credibility: "verified",
+		summary: "Large crowd blocking hallway near atrium.",
+		location: "EV Building, 1st Floor Atrium",
+		building: "EV Building",
+		entrance: "Atrium",
+		timestamp: Date.now() - 1000 * 60 * 45,
+		lastUpdated: Date.now() - 1000 * 60 * 20,
+		timeline: [
+			{ time: "09:30", label: "Reported" },
+			{ time: "09:38", label: "Confirmed" },
+			{ time: "09:55", label: "Verified (official)" },
+		],
+		savedByUser: false,
+	},
+	{
+		id: "3",
+		category: "access_restriction",
+		credibility: "reported",
+		summary: "Elevator out of service, use stairs.",
+		location: "JMSB, Elevators near 2nd Floor",
+		building: "JMSB",
+		entrance: "2nd Floor Elevators",
+		timestamp: Date.now() - 1000 * 60 * 5,
+		lastUpdated: Date.now() - 1000 * 60 * 5,
+		timeline: [{ time: "10:37", label: "Reported" }],
+		savedByUser: false,
 	},
 	{
 		id: "4",
-		type: "maintenance",
-		location: "Hall Building, 4th Floor Bathrooms",
-		description: "Water leak near the sinks, floor is very slippery.",
-		timestamp: Date.now() - 1000 * 60 * 45, // 45 mins ago
-		status: "active",
-		confirmations: 2,
+		category: "construction",
+		credibility: "verified",
+		summary: "Sidewalk closed, detour via Guy Street.",
+		location: "Guy Street, between Hall and EV",
+		building: "Guy Street",
+		timestamp: Date.now() - 1000 * 60 * 120,
+		lastUpdated: Date.now() - 1000 * 60 * 60,
+		timeline: [
+			{ time: "08:00", label: "Reported" },
+			{ time: "08:10", label: "Confirmed" },
+			{ time: "08:30", label: "Verified (official)" },
+		],
+		savedByUser: true,
 	},
 	{
 		id: "5",
-		type: "medical",
-		location: "Hall Building, 12th Floor Labs",
-		description: "Student feeling dizzy in H-1220, first aid requested.",
-		timestamp: Date.now() - 1000 * 60 * 10, // 10 mins ago
-		status: "active",
-		confirmations: 6,
-	},
-
-	// SGW Campus - EV Building
-	{
-		id: "2",
-		type: "maintenance",
-		location: "EV Building, Main Entrance",
-		description: "Automatic door stuck open, very cold in lobby.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-		status: "active",
-		confirmations: 12,
+		category: "blocked_entrance",
+		credibility: "resolved",
+		summary: "Fire drill completed, entrance reopened.",
+		location: "Webster Library, Main Entrance",
+		building: "Webster Library",
+		entrance: "Main Entrance",
+		timestamp: Date.now() - 1000 * 60 * 180,
+		lastUpdated: Date.now() - 1000 * 60 * 90,
+		timeline: [
+			{ time: "07:00", label: "Reported" },
+			{ time: "07:05", label: "Confirmed" },
+			{ time: "07:15", label: "Verified (official)" },
+			{ time: "08:30", label: "Resolved" },
+		],
+		savedByUser: false,
 	},
 	{
 		id: "6",
-		type: "safety",
-		location: "EV Building, 2nd Floor Walkway",
-		description: "Loose railing on the walkway to JMSB.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 5, // 5 hours ago
-		status: "active",
-		confirmations: 8,
-	},
-
-	// SGW Campus - JMSB (MB Building)
-	{
-		id: "3",
-		type: "medical",
-		location: "JMSB, 2nd Floor Study Area",
-		description: "Student feeling faint, security notified.",
-		timestamp: Date.now() - 1000 * 60 * 5, // 5 mins ago
-		status: "resolved",
-		confirmations: 5,
+		category: "dense_crowd",
+		credibility: "confirmed",
+		summary: "Event setup causing crowd near SP entrance.",
+		location: "SP Building, Main Entrance (Loyola)",
+		building: "SP Building",
+		entrance: "Main Entrance",
+		timestamp: Date.now() - 1000 * 60 * 30,
+		lastUpdated: Date.now() - 1000 * 60 * 15,
+		timeline: [
+			{ time: "10:10", label: "Reported" },
+			{ time: "10:25", label: "Confirmed" },
+		],
+		savedByUser: false,
 	},
 	{
 		id: "7",
-		type: "other",
-		location: "JMSB, S2.105",
-		description: "Lost backpack found near the vending machines.",
-		timestamp: Date.now() - 1000 * 60 * 30, // 30 mins ago
-		status: "active",
-		confirmations: 1,
-	},
-
-	// SGW Campus - LB Building (Library)
-	{
-		id: "8",
-		type: "safety",
-		location: "Webster Library, 3rd Floor Quiet Zone",
-		description: "Unattended bag left on table for over an hour.",
-		timestamp: Date.now() - 1000 * 60 * 20, // 20 mins ago
-		status: "active",
-		confirmations: 4,
-	},
-
-	// Loyola Campus - SP Building (Science Pavilion)
-	{
-		id: "9",
-		type: "maintenance",
-		location: "SP Building, 1st Floor Hallway",
-		description: "Light fixture flickering rapidly, causing headaches.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
-		status: "active",
-		confirmations: 15,
-	},
-	{
-		id: "10",
-		type: "medical",
-		location: "SP Building, Cafeteria",
-		description: "Allergic reaction reported, EpiPen administered.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 3, // 3 hours ago
-		status: "resolved",
-		confirmations: 20,
-	},
-
-	// Loyola Campus - CJ Building (Communication Studies)
-	{
-		id: "11",
-		type: "safety",
-		location: "CJ Building, Rear Exit",
-		description: "Ice patch on the stairs leading to the parking lot.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 4, // 4 hours ago
-		status: "active",
-		confirmations: 7,
-	},
-
-	// Loyola Campus - AD Building (Administration)
-	{
-		id: "12",
-		type: "other",
-		location: "AD Building, Front Desk",
-		description: "Found student ID card, turned in to security.",
-		timestamp: Date.now() - 1000 * 60 * 60 * 1, // 1 hour ago
-		status: "active",
-		confirmations: 0,
+		category: "other",
+		credibility: "reported",
+		summary: "Ice patch near rear exit, use caution.",
+		location: "CJ Building, Rear Exit (Loyola)",
+		building: "CJ Building",
+		entrance: "Rear Exit",
+		timestamp: Date.now() - 1000 * 60 * 10,
+		lastUpdated: Date.now() - 1000 * 60 * 10,
+		timeline: [{ time: "10:32", label: "Reported" }],
+		savedByUser: false,
 	},
 ];
 
@@ -137,27 +126,50 @@ export const FlareService = {
 			const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
 			if (jsonValue != null) {
 				return JSON.parse(jsonValue);
-			} else {
-				// Initialize with seed data if empty
-				await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_FLARES));
-				return INITIAL_FLARES;
 			}
+			// Initialize with seed data
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_FLARES));
+			return INITIAL_FLARES;
 		} catch (e) {
 			console.error("Failed to fetch flares", e);
 			return [];
 		}
 	},
 
-	async createFlare(
-		flareData: Omit<Flare, "id" | "timestamp" | "confirmations" | "status">,
-	): Promise<Flare> {
+	async getFlareById(id: string): Promise<Flare | undefined> {
+		const flares = await this.getFlares();
+		return flares.find((f) => f.id === id);
+	},
+
+	async createFlare(data: {
+		category: FlareCategory;
+		building: string;
+		entrance?: string;
+		note?: string;
+	}): Promise<Flare> {
 		await wait(SIMULATED_DELAY_MS);
+		const now = Date.now();
+		const timeStr = new Date(now).toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+
 		const newFlare: Flare = {
-			...flareData,
-			id: Math.random().toString(36).substr(2, 9),
-			timestamp: Date.now(),
-			status: "active",
-			confirmations: 0,
+			id: Math.random().toString(36).substring(2, 11),
+			category: data.category,
+			credibility: "reported",
+			summary:
+				data.note || `${data.category.replace(/_/g, " ")} at ${data.building}.`,
+			location: data.entrance
+				? `${data.building}, ${data.entrance}`
+				: data.building,
+			building: data.building,
+			entrance: data.entrance,
+			timestamp: now,
+			lastUpdated: now,
+			timeline: [{ time: timeStr, label: "Reported" }],
+			savedByUser: false,
+			note: data.note,
 		};
 
 		try {
@@ -171,19 +183,58 @@ export const FlareService = {
 		}
 	},
 
-	async confirmFlare(id: string): Promise<void> {
-		await wait(SIMULATED_DELAY_MS / 2); // Faster than full fetch
+	async saveFlare(id: string): Promise<void> {
 		try {
-			const currentFlares = await this.getFlares();
-			const updatedFlares = currentFlares.map((flare) =>
-				flare.id === id
-					? { ...flare, confirmations: flare.confirmations + 1 }
-					: flare,
+			const flares = await this.getFlares();
+			const updated = flares.map((f) =>
+				f.id === id ? { ...f, savedByUser: true } : f,
 			);
-			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedFlares));
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 		} catch (e) {
-			console.error("Failed to confirm flare", e);
-			throw e;
+			console.error("Failed to save flare", e);
+		}
+	},
+
+	async unsaveFlare(id: string): Promise<void> {
+		try {
+			const flares = await this.getFlares();
+			const updated = flares.map((f) =>
+				f.id === id ? { ...f, savedByUser: false } : f,
+			);
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+		} catch (e) {
+			console.error("Failed to unsave flare", e);
+		}
+	},
+
+	// ── Offline queue helpers ────────────────────────────────
+	async getQueueCount(): Promise<number> {
+		try {
+			const json = await AsyncStorage.getItem(QUEUE_KEY);
+			if (json) return JSON.parse(json).length;
+			return 0;
+		} catch {
+			return 0;
+		}
+	},
+
+	async enqueueReport(data: {
+		category: FlareCategory;
+		building: string;
+		entrance?: string;
+		note?: string;
+	}): Promise<void> {
+		try {
+			const json = await AsyncStorage.getItem(QUEUE_KEY);
+			const queue = json ? JSON.parse(json) : [];
+			queue.push({
+				...data,
+				id: Math.random().toString(36).substring(2, 11),
+				timestamp: Date.now(),
+			});
+			await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+		} catch (e) {
+			console.error("Failed to queue report", e);
 		}
 	},
 };

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlareService } from "../services/FlareService";
-import type { Flare, FlareType } from "../types";
+import type { Flare, FlareCategory } from "../types";
 
 export const useFlares = () => {
 	return useQuery({
@@ -13,47 +13,35 @@ export const useCreateFlare = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (newFlare: {
-			type: FlareType;
-			location: string;
-			description: string;
-		}) => FlareService.createFlare(newFlare),
+		mutationFn: (data: {
+			category: FlareCategory;
+			building: string;
+			entrance?: string;
+			note?: string;
+		}) => FlareService.createFlare(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["flares"] });
 		},
 	});
 };
 
-export const useConfirmFlare = () => {
+export const useSaveFlare = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) => FlareService.confirmFlare(id),
+		mutationFn: (id: string) => FlareService.saveFlare(id),
 		onMutate: async (id) => {
-			// Cancel any outgoing refetches (so they don't overwrite our optimistic update)
 			await queryClient.cancelQueries({ queryKey: ["flares"] });
-
-			// Snapshot the previous value
-			const previousFlares = queryClient.getQueryData<Flare[]>(["flares"]);
-
-			// Optimistically update to the new value
+			const previous = queryClient.getQueryData<Flare[]>(["flares"]);
 			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
-				old?.map((flare) =>
-					flare.id === id
-						? { ...flare, confirmations: flare.confirmations + 1 }
-						: flare,
-				),
+				old?.map((f) => (f.id === id ? { ...f, savedByUser: true } : f)),
 			);
-
-			// Return a context object with the snapshotted value
-			return { previousFlares };
+			return { previous };
 		},
 		onError: (_err, _id, context) => {
-			// If the mutation fails, use the context returned from onMutate to roll back
-			queryClient.setQueryData(["flares"], context?.previousFlares);
+			queryClient.setQueryData(["flares"], context?.previous);
 		},
 		onSettled: () => {
-			// Always refetch after error or success:
 			queryClient.invalidateQueries({ queryKey: ["flares"] });
 		},
 	});
