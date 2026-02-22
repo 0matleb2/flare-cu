@@ -57,3 +57,38 @@ export const useSaveFlare = () => {
 		},
 	});
 };
+
+// Toggle upvote with optimistic update
+export const useUpvoteFlare = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (id: string) => {
+			await FlareService.upvoteFlare(id);
+		},
+		onMutate: async (id) => {
+			await queryClient.cancelQueries({ queryKey: ["flares"] });
+			const previous = queryClient.getQueryData<Flare[]>(["flares"]);
+			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
+				old?.map((f) => {
+					if (f.id !== id) return f;
+					const newUpvotes = f.upvotedByUser
+						? Math.max(0, f.upvotes - 1)
+						: f.upvotes + 1;
+					return {
+						...f,
+						upvotes: newUpvotes,
+						upvotedByUser: !f.upvotedByUser,
+					};
+				}),
+			);
+			return { previous };
+		},
+		onError: (_err, _id, context) => {
+			queryClient.setQueryData(["flares"], context?.previous);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["flares"] });
+		},
+	});
+};

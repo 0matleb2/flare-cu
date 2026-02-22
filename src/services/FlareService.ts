@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Flare, FlareCategory } from "../types";
+import { CONFIRM_THRESHOLD } from "../types";
 
-const STORAGE_KEY = "@flare_cu_flares_v3";
+const STORAGE_KEY = "@flare_cu_flares_v4";
 const QUEUE_KEY = "@flare_cu_offline_queue";
 const SIMULATED_DELAY_MS = 600;
 
@@ -23,6 +24,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "09:55", label: "Verified" },
 		],
 		savedByUser: false,
+		upvotes: 14,
+		upvotedByUser: false,
 	},
 	{
 		id: "2",
@@ -39,6 +42,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "08:30", label: "Verified" },
 		],
 		savedByUser: true,
+		upvotes: 12,
+		upvotedByUser: true,
 	},
 	{
 		id: "3",
@@ -57,6 +62,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "07:45", label: "Verified" },
 		],
 		savedByUser: false,
+		upvotes: 15,
+		upvotedByUser: false,
 	},
 
 	// ── Confirmed ────────────────────────────────────────────
@@ -75,6 +82,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:12", label: "Confirmed" },
 		],
 		savedByUser: false,
+		upvotes: 7,
+		upvotedByUser: false,
 	},
 	{
 		id: "5",
@@ -91,6 +100,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:25", label: "Confirmed" },
 		],
 		savedByUser: false,
+		upvotes: 6,
+		upvotedByUser: false,
 	},
 	{
 		id: "6",
@@ -107,6 +118,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "10:28", label: "Confirmed" },
 		],
 		savedByUser: false,
+		upvotes: 5,
+		upvotedByUser: true,
 	},
 
 	// ── Reported ─────────────────────────────────────────────
@@ -122,6 +135,8 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 5,
 		timeline: [{ time: "10:37", label: "Reported" }],
 		savedByUser: false,
+		upvotes: 3,
+		upvotedByUser: false,
 	},
 	{
 		id: "8",
@@ -135,6 +150,8 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 10,
 		timeline: [{ time: "10:32", label: "Reported" }],
 		savedByUser: false,
+		upvotes: 1,
+		upvotedByUser: false,
 	},
 	{
 		id: "9",
@@ -148,6 +165,8 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 3,
 		timeline: [{ time: "10:39", label: "Reported" }],
 		savedByUser: false,
+		upvotes: 2,
+		upvotedByUser: true,
 	},
 	{
 		id: "10",
@@ -160,6 +179,8 @@ const INITIAL_FLARES: Flare[] = [
 		lastUpdated: Date.now() - 1000 * 60 * 8,
 		timeline: [{ time: "10:34", label: "Reported" }],
 		savedByUser: false,
+		upvotes: 0,
+		upvotedByUser: false,
 	},
 
 	// ── Resolved (bottom) ────────────────────────────────────
@@ -180,6 +201,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "08:30", label: "Resolved" },
 		],
 		savedByUser: false,
+		upvotes: 11,
+		upvotedByUser: false,
 	},
 	{
 		id: "12",
@@ -197,6 +220,8 @@ const INITIAL_FLARES: Flare[] = [
 			{ time: "09:00", label: "Resolved" },
 		],
 		savedByUser: false,
+		upvotes: 10,
+		upvotedByUser: false,
 	},
 ];
 
@@ -253,6 +278,8 @@ export const FlareService = {
 			timeline: [{ time: timeStr, label: "Reported" }],
 			savedByUser: false,
 			note: data.note,
+			upvotes: 0,
+			upvotedByUser: false,
 		};
 
 		try {
@@ -287,6 +314,48 @@ export const FlareService = {
 			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 		} catch (e) {
 			console.error("Failed to unsave flare", e);
+		}
+	},
+
+	async upvoteFlare(id: string): Promise<void> {
+		try {
+			const flares = await this.getFlares();
+			const updated = flares.map((f) => {
+				if (f.id !== id) return f;
+				const wasUpvoted = f.upvotedByUser;
+				const newUpvotes = wasUpvoted
+					? Math.max(0, f.upvotes - 1)
+					: f.upvotes + 1;
+
+				// Auto-promote from reported → confirmed at threshold
+				let newCredibility = f.credibility;
+				const newTimeline = [...f.timeline];
+				if (
+					!wasUpvoted &&
+					f.credibility === "reported" &&
+					newUpvotes >= CONFIRM_THRESHOLD
+				) {
+					newCredibility = "confirmed";
+					const timeStr = new Date().toLocaleTimeString([], {
+						hour: "2-digit",
+						minute: "2-digit",
+					});
+					newTimeline.push({ time: timeStr, label: "Confirmed" });
+				}
+
+				return {
+					...f,
+					upvotes: newUpvotes,
+					upvotedByUser: !wasUpvoted,
+					credibility: newCredibility,
+					timeline: newTimeline,
+					lastUpdated:
+						newCredibility !== f.credibility ? Date.now() : f.lastUpdated,
+				};
+			});
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+		} catch (e) {
+			console.error("Failed to upvote flare", e);
 		}
 	},
 

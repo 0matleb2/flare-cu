@@ -31,7 +31,12 @@ export interface Flare {
 	timeline: TimelineEntry[];
 	savedByUser: boolean;
 	note?: string; // optional reporter note (max 140 chars)
+	upvotes: number; // community confirmation count
+	upvotedByUser: boolean; // whether current user has upvoted
 }
+
+// Number of upvotes needed to auto-promote from reported → confirmed
+export const CONFIRM_THRESHOLD = 5;
 
 // ── Category Helpers ─────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import { Button, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { useEmergency } from "../context/EmergencyContext";
-import { useFlares, useSaveFlare } from "../hooks/useFlares";
+import { useFlares, useSaveFlare, useUpvoteFlare } from "../hooks/useFlares";
 import type {
 	FlareDetailNavProp,
 	NearbyStackParamList,
@@ -32,6 +32,7 @@ export const FlareDetailScreen = () => {
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
 	const saveFlare = useSaveFlare();
+	const upvoteFlare = useUpvoteFlare();
 	const { activate: activateEmergency } = useEmergency();
 
 	const flare = flares.find((f) => f.id === route.params.flareId);
@@ -85,6 +86,29 @@ export const FlareDetailScreen = () => {
 						<Text style={styles.heroDot}>·</Text>
 						<Text style={styles.heroTime}>{timeAgo(flare.lastUpdated)}</Text>
 					</View>
+
+					{/* Upvote / confirm */}
+					{flare.credibility !== "resolved" && (
+						<View style={styles.upvoteRow}>
+							<Button
+								mode={flare.upvotedByUser ? "contained" : "outlined"}
+								icon="arrow-up-bold"
+								onPress={() => upvoteFlare.mutate(flare.id)}
+								buttonColor={flare.upvotedByUser ? colors.burgundy : undefined}
+								textColor={flare.upvotedByUser ? "#FFFFFF" : colors.burgundy}
+								style={styles.upvoteButton}
+								labelStyle={styles.upvoteLabel}
+								compact
+							>
+								{flare.upvotedByUser ? "Confirmed" : "Confirm"} ·{" "}
+								{flare.upvotes}
+							</Button>
+							<Text style={styles.upvoteHint}>
+								{flare.upvotes} {flare.upvotes === 1 ? "person" : "people"}{" "}
+								confirmed this
+							</Text>
+						</View>
+					)}
 				</View>
 
 				{/* ═══ Start plan ═══ */}
@@ -219,6 +243,28 @@ const styles = StyleSheet.create({
 	},
 	heroTime: {
 		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+	},
+	upvoteRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.sm,
+		marginTop: spacing.xs,
+		borderTopWidth: 1,
+		borderTopColor: colors.border,
+		paddingTop: spacing.sm,
+	},
+	upvoteButton: {
+		borderRadius: 20,
+		borderColor: colors.burgundy,
+	},
+	upvoteLabel: {
+		fontSize: 13,
+		fontWeight: "600",
+	},
+	upvoteHint: {
+		flex: 1,
+		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
 	},
 
