@@ -12,13 +12,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
 import { OfflineBanner } from "../components/OfflineBanner";
-import { StatusRow } from "../components/StatusRow";
 import { useEmergency } from "../context/EmergencyContext";
+import { useAppTheme } from "../context/ThemeContext";
 import { useFlares } from "../hooks/useFlares";
 import { useLowStim } from "../hooks/useLowStim";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
+import { components, spacing, typography } from "../theme";
 import type { CredibilityLevel, Flare } from "../types";
 
 // ── Sort modes ──────────────────────────────────────────────
@@ -88,6 +88,7 @@ export const NearbyScreen = () => {
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const insets = useSafeAreaInsets();
 	const { activate } = useEmergency();
+	const { colors } = useAppTheme();
 	const lowStim = useLowStim();
 
 	const isOnline = prefs?.offlineCaching !== false;
@@ -117,11 +118,18 @@ export const NearbyScreen = () => {
 	);
 
 	return (
-		<View style={[styles.container, { paddingTop: insets.top }]}>
+		<View
+			style={[
+				styles.container,
+				{ paddingTop: insets.top, backgroundColor: colors.background },
+			]}
+		>
 			{/* Header */}
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
-					<Text style={styles.title}>Nearby</Text>
+					<Text style={[styles.title, { color: colors.textPrimary }]}>
+						SGW Campus
+					</Text>
 					<Button
 						mode="text"
 						textColor="#D32F2F"
@@ -133,28 +141,55 @@ export const NearbyScreen = () => {
 						Emergency
 					</Button>
 				</View>
-				<StatusRow
-					isOnline={isOnline}
-					locationOn={true}
-					lastSync={syncTimeStr}
-					lowStim={lowStim}
-				/>
 
-				{/* Sort chips */}
+				{/* Sort chips + Online — one row */}
 				<View style={styles.sortRow}>
+					<View
+						style={[
+							styles.onlinePill,
+							{
+								backgroundColor: isOnline ? "#E8F5E9" : "#FFF3E0",
+							},
+						]}
+					>
+						<View
+							style={[
+								styles.onlineDot,
+								{
+									backgroundColor: isOnline
+										? colors.statusSafe
+										: colors.statusCaution,
+								},
+							]}
+						/>
+						<Text style={[styles.onlineText, { color: colors.textPrimary }]}>
+							{isOnline ? "Online" : "Offline"}
+						</Text>
+					</View>
+
 					{SORT_OPTIONS.map((opt) => {
 						const isActive = sortMode === opt.value;
 						return (
 							<TouchableOpacity
 								key={opt.value}
-								style={[styles.sortChip, isActive && styles.sortChipActive]}
+								style={[
+									styles.sortChip,
+									{
+										borderColor: isActive ? colors.burgundy : colors.border,
+										backgroundColor: isActive
+											? `${colors.burgundy}0F`
+											: colors.surface,
+									},
+								]}
 								onPress={() => setSortMode(opt.value)}
 								activeOpacity={0.7}
 							>
 								<Text
 									style={[
 										styles.sortChipText,
-										isActive && styles.sortChipTextActive,
+										{
+											color: isActive ? colors.burgundy : colors.textSecondary,
+										},
 									]}
 								>
 									{opt.label}
@@ -186,7 +221,7 @@ export const NearbyScreen = () => {
 			<FAB
 				icon="fire"
 				label="Raise a flare"
-				style={styles.fab}
+				style={[styles.fab, { backgroundColor: colors.burgundy }]}
 				color="#FFFFFF"
 				onPress={() => navigation.navigate("ReportStep1")}
 				customSize={48}
@@ -198,7 +233,6 @@ export const NearbyScreen = () => {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: colors.background,
 	},
 	header: {
 		paddingHorizontal: components.screenPaddingH,
@@ -213,36 +247,44 @@ const styles = StyleSheet.create({
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
-		color: colors.textPrimary,
 	},
 	emergencyLabel: {
 		fontSize: typography.caption.fontSize,
 	},
 
-	// Sort chips
+	// Sort + Online row
 	sortRow: {
 		flexDirection: "row",
+		alignItems: "center",
 		gap: spacing.xs,
+	},
+	onlinePill: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: spacing.sm,
+		paddingVertical: 4,
+		borderRadius: 12,
+		gap: spacing.xs,
+		marginRight: spacing.xs,
+	},
+	onlineDot: {
+		width: 6,
+		height: 6,
+		borderRadius: 3,
+	},
+	onlineText: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: "600",
 	},
 	sortChip: {
 		paddingHorizontal: spacing.md,
-		paddingVertical: 6,
+		paddingVertical: 4,
 		borderRadius: 20,
 		borderWidth: 1,
-		borderColor: colors.border,
-		backgroundColor: colors.surface,
-	},
-	sortChipActive: {
-		borderColor: colors.burgundy,
-		backgroundColor: `${colors.burgundy}0F`,
 	},
 	sortChipText: {
 		fontSize: typography.caption.fontSize,
 		fontWeight: "600",
-		color: colors.textSecondary,
-	},
-	sortChipTextActive: {
-		color: colors.burgundy,
 	},
 
 	list: {
@@ -253,7 +295,6 @@ const styles = StyleSheet.create({
 		position: "absolute",
 		right: components.screenPaddingH,
 		bottom: 16,
-		backgroundColor: colors.burgundy,
 		borderRadius: components.cardRadius,
 	},
 });

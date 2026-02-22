@@ -1,15 +1,16 @@
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, Divider, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../context/ThemeContext";
 import {
 	usePreferences,
 	useResetPreferences,
 	useUpdatePreferences,
 } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
+import { components, lightColors, spacing, typography } from "../theme";
 
 export interface SettingsScreenProps {
 	onLogout?: () => void;
@@ -21,6 +22,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const updatePref = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
+	const { colors, isDark, colorMode, setColorMode } = useAppTheme();
 
 	// Local state mirroring prefs
 	const [alertHigh, setAlertHigh] = useState(prefs?.alertIntensity === "high");
@@ -34,9 +36,36 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 		updatePref.mutate(update);
 	};
 
+	const cycleTheme = () => {
+		if (colorMode === "system") setColorMode("light");
+		else if (colorMode === "light") setColorMode("dark");
+		else setColorMode("system");
+	};
+
 	return (
-		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
-			<Text style={styles.title}>Settings</Text>
+		<View
+			style={[
+				styles.container,
+				{
+					paddingTop: insets.top + spacing.lg,
+					backgroundColor: colors.background,
+				},
+			]}
+		>
+			<View style={styles.titleRow}>
+				<Text style={[styles.title, { color: colors.textPrimary }]}>
+					Settings
+				</Text>
+				<TouchableOpacity
+					onPress={cycleTheme}
+					activeOpacity={0.6}
+					hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+				>
+					<Text style={styles.themeEmoji}>
+						{colorMode === "system" ? "⚙️" : isDark ? "🌙" : "☀️"}
+					</Text>
+				</TouchableOpacity>
+			</View>
 
 			<ScrollView contentContainerStyle={styles.content}>
 				{/* ══════════ Preferences ══════════ */}
@@ -188,14 +217,20 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: colors.background,
 		paddingHorizontal: components.screenPaddingH,
 	},
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
-		color: colors.textPrimary,
+	},
+	titleRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
 		marginBottom: spacing.lg,
+	},
+	themeEmoji: {
+		fontSize: 22,
 	},
 	content: {
 		paddingBottom: spacing.xl,
@@ -205,7 +240,7 @@ const styles = StyleSheet.create({
 	groupTitle: {
 		fontSize: 13,
 		fontWeight: "600",
-		color: colors.textSecondary,
+		color: lightColors.textSecondary,
 		textTransform: "uppercase",
 		letterSpacing: 1,
 		marginBottom: spacing.sm,
@@ -228,23 +263,23 @@ const styles = StyleSheet.create({
 	label: {
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.h2.fontWeight,
-		color: colors.textPrimary,
+		color: lightColors.textPrimary,
 	},
 	hint: {
 		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
+		color: lightColors.textSecondary,
 		lineHeight: 16,
 	},
 
 	divider: {
-		backgroundColor: colors.border,
+		backgroundColor: lightColors.border,
 		marginVertical: spacing.md,
 	},
 
 	// Support buttons
 	supportButton: {
 		borderRadius: components.cardRadius,
-		borderColor: colors.border,
+		borderColor: lightColors.border,
 		marginBottom: spacing.sm,
 	},
 	supportContent: {
@@ -274,13 +309,13 @@ const styles = StyleSheet.create({
 	},
 	aboutText: {
 		fontSize: typography.caption.fontSize,
-		color: colors.textDisabled,
+		color: lightColors.textDisabled,
 		textAlign: "center",
 		lineHeight: 18,
 	},
 	aboutMeta: {
 		fontSize: 11,
-		color: colors.textDisabled,
+		color: lightColors.textDisabled,
 		marginTop: spacing.xs,
 	},
 });
