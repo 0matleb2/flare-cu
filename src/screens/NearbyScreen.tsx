@@ -11,7 +11,15 @@ import { useFlares } from "../hooks/useFlares";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
-import type { Flare } from "../types";
+import type { CredibilityLevel, Flare } from "../types";
+
+// Feed sorting: verified first, then confirmed, reported, resolved last
+const CREDIBILITY_PRIORITY: Record<CredibilityLevel, number> = {
+	verified: 0,
+	confirmed: 1,
+	reported: 2,
+	resolved: 3,
+};
 
 export const NearbyScreen = () => {
 	const { data: flares = [], isLoading, refetch } = useFlares();
@@ -23,11 +31,21 @@ export const NearbyScreen = () => {
 	const isOnline = prefs?.offlineCaching !== false;
 
 	// Filter: hide unconfirmed in low intensity
-	const feedFlares = flares.filter((f) => {
-		if (prefs?.alertIntensity === "low" && f.credibility === "reported")
-			return false;
-		return true;
-	});
+	const feedFlares = flares
+		.filter((f) => {
+			if (prefs?.alertIntensity === "low" && f.credibility === "reported")
+				return false;
+			return true;
+		})
+		// Sort by credibility priority
+		.sort((a, b) => {
+			const diff =
+				CREDIBILITY_PRIORITY[a.credibility] -
+				CREDIBILITY_PRIORITY[b.credibility];
+			if (diff !== 0) return diff;
+			// Within same credibility, most recent first
+			return b.lastUpdated - a.lastUpdated;
+		});
 
 	const syncTimeStr = new Date().toLocaleTimeString([], {
 		hour: "2-digit",
@@ -48,15 +66,14 @@ export const NearbyScreen = () => {
 				<View style={styles.titleRow}>
 					<Text style={styles.title}>Nearby</Text>
 					<Button
-						mode="contained"
-						buttonColor="#D32F2F"
-						textColor="#FFFFFF"
+						mode="text"
+						textColor="#D32F2F"
 						compact
+						icon="alert-circle-outline"
 						labelStyle={styles.emergencyLabel}
-						style={styles.emergencyButton}
 						onPress={() => activate({ source: "manual" })}
 					>
-						🚨 Emergency
+						Emergency
 					</Button>
 				</View>
 				<StatusRow
@@ -116,12 +133,8 @@ const styles = StyleSheet.create({
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
 	},
-	emergencyButton: {
-		borderRadius: components.cardRadius,
-	},
 	emergencyLabel: {
 		fontSize: typography.caption.fontSize,
-		fontWeight: typography.button.fontWeight,
 	},
 	list: {
 		paddingHorizontal: components.screenPaddingH,

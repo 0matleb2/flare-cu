@@ -46,7 +46,7 @@ export const CATEGORY_LABELS: Record<FlareCategory, string> = {
 export const CREDIBILITY_LABELS: Record<CredibilityLevel, string> = {
 	reported: "Reported",
 	confirmed: "Confirmed",
-	verified: "Verified (official)",
+	verified: "Verified",
 	resolved: "Resolved",
 };
 
