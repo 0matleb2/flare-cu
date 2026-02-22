@@ -16,8 +16,6 @@ const SGW_BUILDINGS = [
 	{ code: "CL", name: "CL Building", address: "1665 Ste-Catherine W" },
 	{ code: "ER", name: "ER Building", address: "2155 Guy St" },
 	{ code: "FG", name: "FG Building", address: "1616 Ste-Catherine W" },
-	{ code: "LS", name: "LS Building", address: "7141 Sherbrooke W" },
-	{ code: "LOY", name: "Loyola Campus", address: "7141 Sherbrooke W" },
 ];
 
 export const RouteSetupScreen = () => {
