@@ -3,7 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { PaperProvider } from "react-native-paper";
+import { Icon, PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
 	EmergencyProvider,
@@ -90,19 +90,46 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 			<Tab.Screen
 				name="NearbyTab"
 				component={NearbyStackNavigator}
-				options={{ tabBarLabel: "Nearby" }}
+				options={{
+					tabBarLabel: "Nearby",
+					tabBarIcon: ({ color, size }) => (
+						<Icon
+							source="map-marker-radius-outline"
+							color={color}
+							size={size}
+						/>
+					),
+				}}
 			/>
 			<Tab.Screen
 				name="RouteTab"
 				component={RouteStackNavigator}
-				options={{ tabBarLabel: "Route" }}
+				options={{
+					tabBarLabel: "Route",
+					tabBarIcon: ({ color, size }) => (
+						<Icon source="map-search-outline" color={color} size={size} />
+					),
+				}}
 			/>
 			<Tab.Screen
 				name="SavedTab"
 				component={SavedScreen}
-				options={{ tabBarLabel: "Saved" }}
+				options={{
+					tabBarLabel: "Saved",
+					tabBarIcon: ({ color, size }) => (
+						<Icon source="bookmark-outline" color={color} size={size} />
+					),
+				}}
 			/>
-			<Tab.Screen name="SettingsTab" options={{ tabBarLabel: "Settings" }}>
+			<Tab.Screen
+				name="SettingsTab"
+				options={{
+					tabBarLabel: "Settings",
+					tabBarIcon: ({ color, size }) => (
+						<Icon source="cog-outline" color={color} size={size} />
+					),
+				}}
+			>
 				{() => <SettingsScreen onLogout={onLogout} />}
 			</Tab.Screen>
 		</Tab.Navigator>

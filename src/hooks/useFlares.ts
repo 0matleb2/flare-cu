@@ -25,16 +25,27 @@ export const useCreateFlare = () => {
 	});
 };
 
+// Toggle save/unsave — optimistic update
 export const useSaveFlare = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) => FlareService.saveFlare(id),
+		mutationFn: async (id: string) => {
+			const flares = queryClient.getQueryData<Flare[]>(["flares"]);
+			const flare = flares?.find((f) => f.id === id);
+			if (flare?.savedByUser) {
+				await FlareService.unsaveFlare(id);
+			} else {
+				await FlareService.saveFlare(id);
+			}
+		},
 		onMutate: async (id) => {
 			await queryClient.cancelQueries({ queryKey: ["flares"] });
 			const previous = queryClient.getQueryData<Flare[]>(["flares"]);
 			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
-				old?.map((f) => (f.id === id ? { ...f, savedByUser: true } : f)),
+				old?.map((f) =>
+					f.id === id ? { ...f, savedByUser: !f.savedByUser } : f,
+				),
 			);
 			return { previous };
 		},

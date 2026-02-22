@@ -54,7 +54,7 @@ const SAFE_POINTS: Record<string, string> = {
 };
 
 function generateSteps(trigger: EmergencyTrigger): EmergencyStep[] {
-	const { source, flare, category, building } = trigger;
+	const { flare, category, building } = trigger;
 	const cat = category ?? flare?.category;
 	const loc = building ?? flare?.building;
 	const nearestSafe = loc
