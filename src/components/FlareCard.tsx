@@ -4,7 +4,6 @@ import { colors, components, spacing, typography } from "../theme";
 import type { Flare } from "../types";
 import { CATEGORY_LABELS } from "../types";
 import { CredibilityChip } from "./CredibilityChip";
-import { ProgressBar } from "./ProgressBar";
 
 interface FlareCardProps {
 	flare: Flare;
@@ -30,23 +29,23 @@ export const FlareCard = ({ flare, onPress }: FlareCardProps) => {
 			accessibilityRole="button"
 			accessibilityLabel={`${CATEGORY_LABELS[flare.category]} at ${flare.location}`}
 		>
-			{/* Top row: category + timestamp */}
+			{/* Category + credibility row */}
 			<View style={styles.topRow}>
 				<Text style={styles.category}>{CATEGORY_LABELS[flare.category]}</Text>
-				<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
+				<CredibilityChip level={flare.credibility} />
 			</View>
 
-			{/* Location */}
-			<Text style={styles.location} numberOfLines={1}>
-				{flare.location}
+			{/* Summary */}
+			<Text style={styles.summary} numberOfLines={2}>
+				{flare.summary}
 			</Text>
 
-			{/* Bottom row: credibility + mini progress */}
+			{/* Location + time */}
 			<View style={styles.bottomRow}>
-				<CredibilityChip level={flare.credibility} />
-				<View style={styles.progressWrap}>
-					<ProgressBar currentLevel={flare.credibility} />
-				</View>
+				<Text style={styles.location} numberOfLines={1}>
+					{flare.location}
+				</Text>
+				<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
 			</View>
 		</TouchableOpacity>
 	);
@@ -60,8 +59,7 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		padding: components.cardPadding,
 		marginBottom: components.cardGap,
-		gap: spacing.sm,
-		minHeight: components.touchTarget,
+		gap: spacing.xs,
 	},
 	topRow: {
 		flexDirection: "row",
@@ -73,20 +71,25 @@ const styles = StyleSheet.create({
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
 	},
-	timestamp: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-	},
-	location: {
+	summary: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
+		lineHeight: 20,
 	},
 	bottomRow: {
 		flexDirection: "row",
+		justifyContent: "space-between",
 		alignItems: "center",
-		gap: spacing.md,
+		marginTop: spacing.xs,
 	},
-	progressWrap: {
+	location: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textDisabled,
 		flex: 1,
+		marginRight: spacing.sm,
+	},
+	timestamp: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textDisabled,
 	},
 });

@@ -1,13 +1,16 @@
+import { useNavigation } from "@react-navigation/native";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlareCard } from "../components/FlareCard";
 import { useFlares } from "../hooks/useFlares";
+import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
 export const SavedScreen = () => {
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
+	const navigation = useNavigation<NearbyFeedNavProp>();
 
 	const savedFlares = flares.filter((f) => f.savedByUser);
 	const syncTime = new Date().toLocaleTimeString([], {
@@ -24,13 +27,22 @@ export const SavedScreen = () => {
 			<Text style={styles.title}>Saved</Text>
 
 			<ScrollView contentContainerStyle={styles.content}>
-				{/* Saved flares section */}
+				{/* Saved flares */}
 				<Text style={styles.sectionTitle}>
 					Saved flares ({savedFlares.length})
 				</Text>
 				{savedFlares.length > 0 ? (
 					savedFlares.map((flare) => (
-						<FlareCard key={flare.id} flare={flare} onPress={() => {}} />
+						<FlareCard
+							key={flare.id}
+							flare={flare}
+							onPress={() =>
+								navigation.navigate("NearbyTab", {
+									screen: "FlareDetail",
+									params: { flareId: flare.id },
+								})
+							}
+						/>
 					))
 				) : (
 					<View style={styles.emptyCard}>
@@ -41,7 +53,7 @@ export const SavedScreen = () => {
 					</View>
 				)}
 
-				{/* Offline pack status */}
+				{/* Offline pack */}
 				<Text style={styles.sectionTitle}>Offline pack</Text>
 				<View style={styles.card}>
 					<View style={styles.row}>

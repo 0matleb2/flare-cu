@@ -15,16 +15,9 @@ export const StatusRow = ({
 }: StatusRowProps) => {
 	return (
 		<View style={styles.container}>
-			{/* Online / Offline pill */}
+			{/* Online / Offline status */}
 			<View
-				style={[
-					styles.pill,
-					{
-						backgroundColor: isOnline
-							? `${colors.statusSafe}18`
-							: `${colors.statusCaution}18`,
-					},
-				]}
+				style={[styles.pill, isOnline ? styles.onlinePill : styles.offlinePill]}
 			>
 				<View
 					style={[
@@ -36,30 +29,16 @@ export const StatusRow = ({
 						},
 					]}
 				/>
-				<Text
-					style={[
-						styles.pillText,
-						{
-							color: isOnline ? colors.statusSafe : colors.statusCaution,
-						},
-					]}
-				>
-					{isOnline ? "Online" : "Offline"}
-				</Text>
+				<Text style={styles.pillText}>{isOnline ? "Online" : "Offline"}</Text>
 			</View>
 
-			{/* Location icon/text */}
-			<Text
-				style={[
-					styles.meta,
-					{ color: locationOn ? colors.textSecondary : colors.statusCaution },
-				]}
-			>
-				{locationOn ? "📍 On" : "📍 Off"}
-			</Text>
+			{/* Location indicator */}
+			{locationOn && <Text style={styles.locationText}>📍 SGW Campus</Text>}
 
-			{/* Last sync */}
-			{lastSync && <Text style={styles.meta}>Synced {lastSync}</Text>}
+			{/* Last sync — only shown when offline */}
+			{!isOnline && lastSync && (
+				<Text style={styles.syncText}>Synced {lastSync}</Text>
+			)}
 		</View>
 	);
 };
@@ -68,26 +47,37 @@ const styles = StyleSheet.create({
 	container: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: spacing.md,
+		gap: spacing.sm,
 	},
 	pill: {
 		flexDirection: "row",
 		alignItems: "center",
-		borderRadius: 999,
+		paddingHorizontal: spacing.sm,
 		paddingVertical: 4,
-		paddingHorizontal: 10,
-		gap: 6,
+		borderRadius: 12,
+		gap: spacing.xs,
+	},
+	onlinePill: {
+		backgroundColor: "#E8F5E9",
+	},
+	offlinePill: {
+		backgroundColor: "#FFF3E0",
 	},
 	dot: {
-		width: 6,
-		height: 6,
-		borderRadius: 3,
+		width: 8,
+		height: 8,
+		borderRadius: 4,
 	},
 	pillText: {
-		fontSize: typography.chip.fontSize,
+		fontSize: typography.caption.fontSize,
 		fontWeight: typography.chip.fontWeight,
+		color: colors.textPrimary,
 	},
-	meta: {
+	locationText: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+	},
+	syncText: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
 	},

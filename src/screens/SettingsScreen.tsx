@@ -34,7 +34,6 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const [lowStimulation, setLowStimulation] = useState(false);
 	const [offlineCaching, setOfflineCaching] = useState(true);
 
-	// Sync local state from persisted preferences
 	useEffect(() => {
 		if (prefs) {
 			setAlertIntensity(prefs.alertIntensity);
@@ -98,13 +97,13 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 
 				<Divider style={styles.divider} />
 
-				{/* Toggles with descriptions */}
+				{/* Toggles */}
 				<View style={styles.toggleSection}>
 					<View style={styles.row}>
 						<View style={styles.toggleText}>
 							<Text style={styles.label}>Mobility-friendly guidance</Text>
 							<Text style={styles.hint}>
-								Accessible routes shown first in Route tab
+								Accessible routes appear first in Route tab
 							</Text>
 						</View>
 						<Switch
@@ -121,7 +120,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 						<View style={styles.toggleText}>
 							<Text style={styles.label}>Low stimulation mode</Text>
 							<Text style={styles.hint}>
-								Reduces motion and simplifies alert cards
+								Simplifies alerts and reduces motion
 							</Text>
 						</View>
 						<Switch
@@ -133,57 +132,55 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 							color={colors.burgundy}
 						/>
 					</View>
-
-					<View style={styles.row}>
-						<View style={styles.toggleText}>
-							<Text style={styles.label}>Offline caching</Text>
-							<Text style={styles.hint}>
-								Off = simulate offline mode with cached data
-							</Text>
-						</View>
-						<Switch
-							value={offlineCaching}
-							onValueChange={(v) => {
-								setOfflineCaching(v);
-								handleUpdate("offlineCaching", v);
-							}}
-							color={colors.burgundy}
-						/>
-					</View>
 				</View>
 
 				<Divider style={styles.divider} />
 
-				{/* Help & About */}
+				{/* Offline simulator */}
+				<View style={styles.section}>
+					<Text style={styles.label}>Offline simulator</Text>
+					<Text style={styles.hint}>
+						Simulates offline mode for testing. Feed shows cached data.
+					</Text>
+					<Button
+						mode={offlineCaching ? "outlined" : "contained"}
+						onPress={() => {
+							const newVal = !offlineCaching;
+							setOfflineCaching(newVal);
+							handleUpdate("offlineCaching", newVal);
+						}}
+						buttonColor={offlineCaching ? undefined : colors.statusCaution}
+						textColor={offlineCaching ? colors.textPrimary : "#FFFFFF"}
+						style={styles.actionButton}
+						labelStyle={styles.actionLabel}
+						contentStyle={styles.actionContent}
+					>
+						{offlineCaching ? "Go offline" : "Go online"}
+					</Button>
+				</View>
+
+				<Divider style={styles.divider} />
+
+				{/* Help */}
 				<Button
 					mode="outlined"
 					icon="help-circle-outline"
 					onPress={() => navigation.navigate("NearbyTab", { screen: "Help" })}
 					textColor={colors.textPrimary}
-					style={styles.helpButton}
-					labelStyle={styles.helpLabel}
-					contentStyle={styles.helpContent}
+					style={styles.actionButton}
+					labelStyle={styles.actionLabel}
+					contentStyle={styles.actionContent}
 				>
 					Help & Documentation
 				</Button>
 
-				{/* About credibility labels */}
-				<View style={styles.infoCard}>
-					<Text style={styles.infoTitle}>About credibility labels</Text>
-					<Text style={styles.infoBody}>
-						Each flare progresses through four stages: Reported → Confirmed →
-						Verified (official) → Resolved. Only campus authorities can mark a
-						flare as Verified.
-					</Text>
-				</View>
-
-				{/* Reset to defaults */}
+				{/* Reset */}
 				<Button
 					mode="outlined"
 					onPress={() => resetPrefs.mutate(undefined)}
 					textColor={colors.textSecondary}
-					style={styles.resetButton}
-					labelStyle={styles.resetLabel}
+					style={styles.actionButton}
+					labelStyle={styles.actionLabel}
 				>
 					Reset to defaults
 				</Button>
@@ -197,8 +194,8 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 							buttonColor={colors.burgundy}
 							textColor="#FFFFFF"
 							labelStyle={styles.logoutLabel}
-							contentStyle={styles.logoutContent}
-							style={styles.logoutButton}
+							contentStyle={styles.actionContent}
+							style={styles.actionButton}
 						>
 							Log out
 						</Button>
@@ -258,51 +255,19 @@ const styles = StyleSheet.create({
 	divider: {
 		backgroundColor: colors.border,
 	},
-	helpButton: {
+	actionButton: {
 		borderColor: colors.border,
 		borderRadius: components.cardRadius,
 	},
-	helpContent: {
+	actionContent: {
 		minHeight: components.touchTarget,
 	},
-	helpLabel: {
-		fontSize: typography.body.fontSize,
-	},
-	infoCard: {
-		backgroundColor: colors.surface,
-		borderRadius: components.cardRadius,
-		borderWidth: components.cardBorderWidth,
-		borderColor: colors.border,
-		padding: components.cardPadding,
-		gap: spacing.sm,
-	},
-	infoTitle: {
-		fontSize: typography.h2.fontSize,
-		fontWeight: typography.h2.fontWeight,
-		color: colors.textPrimary,
-	},
-	infoBody: {
-		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
-		lineHeight: 20,
-	},
-	resetButton: {
-		borderColor: colors.border,
-		borderRadius: components.cardRadius,
-	},
-	resetLabel: {
+	actionLabel: {
 		fontSize: typography.body.fontSize,
 	},
 	logoutContainer: {
 		alignItems: "center",
-		marginTop: spacing.lg,
-	},
-	logoutButton: {
-		borderRadius: components.cardRadius,
-		minWidth: 200,
-	},
-	logoutContent: {
-		minHeight: components.touchTarget,
+		marginTop: spacing.md,
 	},
 	logoutLabel: {
 		fontSize: typography.button.fontSize,

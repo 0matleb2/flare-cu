@@ -30,19 +30,25 @@ export const RouteSetupScreen = () => {
 			<Text style={styles.title}>Route</Text>
 
 			<View style={styles.fields}>
-				<TextInput
-					mode="outlined"
-					label="From"
-					value="Current location"
-					editable={false}
-					style={styles.input}
-					outlineColor={colors.border}
-				/>
+				<View>
+					<TextInput
+						mode="outlined"
+						label="From"
+						value="📍 Current location"
+						editable={false}
+						style={styles.input}
+						outlineColor={colors.border}
+					/>
+					<Text style={styles.locationHint}>
+						SGW Campus — near Hall Building
+					</Text>
+				</View>
 				<TextInput
 					mode="outlined"
 					label="To — building or entrance"
 					value={destination}
 					onChangeText={setDestination}
+					placeholder="e.g. H Building, EV, LB"
 					style={styles.input}
 					outlineColor={colors.border}
 					activeOutlineColor={colors.burgundy}
@@ -110,6 +116,12 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		backgroundColor: colors.surface,
+	},
+	locationHint: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+		marginTop: 4,
+		marginLeft: spacing.xs,
 	},
 	toggles: {
 		gap: spacing.base,

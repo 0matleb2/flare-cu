@@ -1,10 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
-import { FAB, IconButton, Text } from "react-native-paper";
+import { Button, FAB, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
-import { FilterChips } from "../components/FilterChips";
 import { FlareCard } from "../components/FlareCard";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { StatusRow } from "../components/StatusRow";
@@ -13,7 +12,7 @@ import { useFlares } from "../hooks/useFlares";
 import { usePreferences } from "../hooks/usePreferences";
 import type { NearbyFeedNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
-import type { FeedFilter, Flare } from "../types";
+import type { Flare } from "../types";
 
 export const NearbyScreen = () => {
 	const { data: flares = [], isLoading, refetch } = useFlares();
@@ -21,22 +20,21 @@ export const NearbyScreen = () => {
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const insets = useSafeAreaInsets();
 
-	const [filter, setFilter] = useState<FeedFilter>("near_me");
 	const [zonePromptVisible, setZonePromptVisible] = useState(false);
 	const [zoneFlareId, _setZoneFlareId] = useState<string | null>(null);
 
-	// Use offline state from prefs (toggled in Settings)
 	const isOnline = prefs?.offlineCaching !== false;
 
-	// Filter flares based on active filter + preferences
-	const filteredFlares = flares.filter((f) => {
-		if (filter === "hide_resolved" && f.credibility === "resolved")
-			return false;
-		if (filter === "high_tension") return f.credibility === "reported";
-		// If alert intensity is "low", hide reported-only (unconfirmed) flares
+	// Filter: hide resolved if not relevant, hide unconfirmed in low intensity
+	const feedFlares = flares.filter((f) => {
 		if (prefs?.alertIntensity === "low" && f.credibility === "reported")
 			return false;
 		return true;
+	});
+
+	const syncTimeStr = new Date().toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
 	});
 
 	const renderItem = ({ item }: { item: Flare }) => (
@@ -46,24 +44,23 @@ export const NearbyScreen = () => {
 		/>
 	);
 
-	const syncTimeStr = new Date().toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
 			{/* Header */}
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
 					<Text style={styles.title}>Nearby</Text>
-					<IconButton
-						icon="help-circle-outline"
-						iconColor={colors.textSecondary}
-						size={24}
-						onPress={() => navigation.navigate("Help")}
-						accessibilityLabel="Help"
-					/>
+					<Button
+						mode="contained"
+						buttonColor="#D32F2F"
+						textColor="#FFFFFF"
+						compact
+						labelStyle={styles.emergencyLabel}
+						style={styles.emergencyButton}
+						onPress={() => navigation.navigate("EmergencyUX", {})}
+					>
+						🚨 Emergency
+					</Button>
 				</View>
 				<StatusRow
 					isOnline={isOnline}
@@ -77,12 +74,9 @@ export const NearbyScreen = () => {
 				<OfflineBanner variant="offline" lastSyncTime={syncTimeStr} />
 			)}
 
-			{/* Filter chips */}
-			<FilterChips active={filter} onSelect={setFilter} />
-
-			{/* Feed */}
+			{/* Feed — no filter pills, just the list */}
 			<FlatList
-				data={filteredFlares}
+				data={feedFlares}
 				renderItem={renderItem}
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.list}
@@ -102,7 +96,7 @@ export const NearbyScreen = () => {
 				customSize={48}
 			/>
 
-			{/* Zone of Interest prompt */}
+			{/* Zone prompt */}
 			<ZonePromptModal
 				visible={zonePromptVisible}
 				onViewGuidance={() => {
@@ -125,8 +119,8 @@ const styles = StyleSheet.create({
 	},
 	header: {
 		paddingHorizontal: components.screenPaddingH,
-		paddingVertical: spacing.sm,
-		gap: spacing.xs,
+		paddingVertical: spacing.md,
+		gap: spacing.sm,
 	},
 	titleRow: {
 		flexDirection: "row",
@@ -137,6 +131,13 @@ const styles = StyleSheet.create({
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
+	},
+	emergencyButton: {
+		borderRadius: components.cardRadius,
+	},
+	emergencyLabel: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: typography.button.fontWeight,
 	},
 	list: {
 		paddingHorizontal: components.screenPaddingH,
