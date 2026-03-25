@@ -13,7 +13,8 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 
 	const [mobilityFriendly, setMobilityFriendly] = useState(false);
 	const [lowStimulation, setLowStimulation] = useState(false);
-	const [alertIntensity, setAlertIntensity] = useState<string>("high");
+	const [alertsEnabled, setAlertsEnabled] = useState(false);
+	const [alertIntensity, setAlertIntensity] = useState<string>("low");
 
 	const handleContinue = () => {
 		// In a real app, save preferences here via PreferencesService
@@ -58,21 +59,32 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 					/>
 				</View>
 
-				{/* Alert intensity */}
+				{/* Alerts intensity */}
 				<View style={styles.segmentSection}>
-					<Text style={styles.label}>Alerts intensity</Text>
-					<Text style={styles.hint}>
-						Low: fewer alerts · Medium: all relevant alerts
-					</Text>
-					<SegmentedButtons
-						value={alertIntensity}
-						onValueChange={setAlertIntensity}
-						buttons={[
-							{ value: "low", label: "Low" },
-							{ value: "medium", label: "Medium" },
-						]}
-						style={styles.segmented}
-					/>
+					<View style={styles.row}>
+						<View style={styles.rowText}>
+							<Text style={styles.label}>Alerts intensity</Text>
+							<Text style={styles.hint}>
+								Turn on to get all relevant alerts
+							</Text>
+						</View>
+						<Switch
+							value={alertsEnabled}
+							onValueChange={setAlertsEnabled}
+							color={colors.burgundy}
+						/>
+					</View>
+					{alertsEnabled && (
+						<SegmentedButtons
+							value={alertIntensity}
+							onValueChange={setAlertIntensity}
+							buttons={[
+								{ value: "low", label: "Low" },
+								{ value: "medium", label: "Medium" },
+							]}
+							style={styles.segmented}
+						/>
+					)}
 				</View>
 			</View>
 

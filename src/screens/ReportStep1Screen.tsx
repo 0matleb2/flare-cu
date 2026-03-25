@@ -1,7 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Button, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ReportStep1NavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
@@ -49,6 +49,7 @@ export const ReportStep1Screen = () => {
 	const navigation = useNavigation<ReportStep1NavProp>();
 	const insets = useSafeAreaInsets();
 	const [selected, setSelected] = useState<FlareCategory | null>(null);
+	const [otherText, setOtherText] = useState("");
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -64,7 +65,7 @@ export const ReportStep1Screen = () => {
 				</Button>
 			</View>
 
-			<View style={styles.content}>
+			<ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
 				{/* Progress bar */}
 				<View style={styles.progressRow}>
 					<View style={[styles.progressSegment, styles.progressCurrent]} />
@@ -111,7 +112,23 @@ export const ReportStep1Screen = () => {
 						);
 					})}
 				</View>
-			</View>
+
+				{/* "Other" text input */}
+				{selected === "other" && (
+					<TextInput
+						mode="outlined"
+						label="What's happening?"
+						value={otherText}
+						onChangeText={setOtherText}
+						multiline
+						numberOfLines={3}
+						style={styles.otherInput}
+						outlineColor={colors.border}
+						activeOutlineColor={colors.burgundy}
+						placeholder="Describe what's affecting campus access..."
+					/>
+				)}
+			</ScrollView>
 
 			{/* Next button at bottom */}
 			<View
@@ -124,14 +141,22 @@ export const ReportStep1Screen = () => {
 					mode="contained"
 					onPress={() =>
 						selected &&
-						navigation.navigate("ReportStep2", { category: selected })
+						navigation.navigate("ReportStep2", {
+							category:
+								selected === "other" && otherText.trim()
+									? `other: ${otherText.trim()}`
+									: selected,
+						})
 					}
 					buttonColor={colors.burgundy}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
 					style={styles.button}
-					disabled={!selected}
+					disabled={
+						!selected ||
+						(selected === "other" && !otherText.trim())
+					}
 				>
 					Next
 				</Button>
@@ -154,6 +179,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		paddingHorizontal: components.screenPaddingH,
 		gap: spacing.sm,
+		paddingBottom: spacing.lg,
 	},
 	title: {
 		fontSize: typography.h1.fontSize,
@@ -239,6 +265,10 @@ const styles = StyleSheet.create({
 		height: 12,
 		borderRadius: 6,
 		backgroundColor: colors.burgundy,
+	},
+	otherInput: {
+		backgroundColor: colors.surface,
+		marginTop: spacing.xs,
 	},
 
 	// Bottom bar

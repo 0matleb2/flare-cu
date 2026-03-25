@@ -6,7 +6,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LoginScreenNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
-export const LoginScreen = () => {
+interface LoginScreenProps {
+	onLogin?: () => void;
+}
+
+export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 	const navigation = useNavigation<LoginScreenNavProp>();
 	const insets = useSafeAreaInsets();
 
@@ -22,9 +26,12 @@ export const LoginScreen = () => {
 		}
 	};
 
+	const isFormValid = !!email && !emailError;
+
 	const handleLogin = () => {
-		if (!email || emailError) return;
-		navigation.navigate("Preferences");
+		if (!isFormValid) return;
+		// Existing users skip onboarding
+		onLogin?.();
 	};
 
 	return (
@@ -40,8 +47,10 @@ export const LoginScreen = () => {
 			>
 				Back
 			</Button>
+
 			<Text style={styles.title}>Login</Text>
 
+			{/* Form → CTA → cross-link: single top-to-bottom flow */}
 			<View style={styles.form}>
 				<TextInput
 					mode="outlined"
@@ -74,18 +83,32 @@ export const LoginScreen = () => {
 					activeOutlineColor={colors.burgundy}
 				/>
 
+				{/* Primary CTA — immediately after last input */}
 				<Button
 					mode="contained"
 					onPress={handleLogin}
-					buttonColor={colors.burgundy}
+					buttonColor={isFormValid ? colors.burgundy : "#C4A0B0"}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
-					style={styles.button}
-					disabled={!email || !!emailError}
+					style={styles.primaryButton}
 				>
 					Login
 				</Button>
+
+				{/* Auth-switch — secondary action right below CTA */}
+				<View style={styles.crossLink}>
+					<Text style={styles.crossLinkText}>Don't have an account?</Text>
+					<Button
+						mode="text"
+						onPress={() => navigation.navigate("CreateAccount")}
+						textColor={colors.burgundy}
+						labelStyle={styles.crossLinkLabel}
+						compact
+					>
+						Create account
+					</Button>
+				</View>
 			</View>
 		</View>
 	);
@@ -115,20 +138,34 @@ const styles = StyleSheet.create({
 		marginBottom: spacing.lg,
 	},
 	form: {
-		gap: spacing.md,
+		gap: spacing.sm,
 	},
 	input: {
 		backgroundColor: colors.surface,
 	},
-	button: {
+	primaryButton: {
 		borderRadius: components.cardRadius,
-		marginTop: spacing.sm,
+		marginTop: spacing.xs,
 	},
 	buttonContent: {
 		minHeight: components.touchTarget,
 	},
 	buttonLabel: {
 		fontSize: typography.button.fontSize,
+		fontWeight: typography.button.fontWeight,
+	},
+	crossLink: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: spacing.xs,
+	},
+	crossLinkText: {
+		fontSize: typography.body.fontSize,
+		color: "#4B5563",
+	},
+	crossLinkLabel: {
+		fontSize: typography.body.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
 });
