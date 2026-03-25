@@ -11,7 +11,6 @@ import { Button, FAB, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
-import { OfflineBanner } from "../components/OfflineBanner";
 import { useEmergency } from "../context/EmergencyContext";
 import { useFlares } from "../hooks/useFlares";
 import { useLowStim } from "../hooks/useLowStim";
@@ -102,11 +101,6 @@ export const NearbyScreen = () => {
 		sortMode,
 	);
 
-	const syncTimeStr = new Date().toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-
 	const renderItem = ({ item }: { item: Flare }) => (
 		<FlareCard
 			flare={item}
@@ -120,7 +114,33 @@ export const NearbyScreen = () => {
 			{/* Header */}
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
-					<Text style={styles.title}>SGW Campus</Text>
+					<View style={styles.titleLeft}>
+						<Text style={styles.title}>SGW Campus</Text>
+						<View style={styles.statusBadge}>
+							<View
+								style={[
+									styles.statusDot,
+									{
+										backgroundColor: isOnline
+											? colors.statusSafe
+											: colors.statusCaution,
+									},
+								]}
+							/>
+							<Text
+								style={[
+									styles.statusText,
+									{
+										color: isOnline
+											? colors.statusSafe
+											: colors.statusCaution,
+									},
+								]}
+							>
+								{isOnline ? "Online" : "Offline"}
+							</Text>
+						</View>
+					</View>
 					<Button
 						mode="text"
 						textColor="#D32F2F"
@@ -133,31 +153,8 @@ export const NearbyScreen = () => {
 					</Button>
 				</View>
 
-				{/* Sort chips + Online — one row */}
+				{/* Sort chips */}
 				<View style={styles.sortRow}>
-					<View
-						style={[
-							styles.onlinePill,
-							{
-								backgroundColor: isOnline ? "#E8F5E9" : "#FFF3E0",
-							},
-						]}
-					>
-						<View
-							style={[
-								styles.onlineDot,
-								{
-									backgroundColor: isOnline
-										? colors.statusSafe
-										: colors.statusCaution,
-								},
-							]}
-						/>
-						<Text style={styles.onlineText}>
-							{isOnline ? "Online" : "Offline"}
-						</Text>
-					</View>
-
 					{SORT_OPTIONS.map((opt) => {
 						const isActive = sortMode === opt.value;
 						return (
@@ -180,11 +177,6 @@ export const NearbyScreen = () => {
 					})}
 				</View>
 			</View>
-
-			{/* Offline banner */}
-			{!isOnline && (
-				<OfflineBanner variant="offline" lastSyncTime={syncTimeStr} />
-			)}
 
 			{/* Feed */}
 			<FlatList
@@ -226,6 +218,11 @@ const styles = StyleSheet.create({
 		justifyContent: "space-between",
 		alignItems: "center",
 	},
+	titleLeft: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.sm,
+	},
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
@@ -235,30 +232,27 @@ const styles = StyleSheet.create({
 		fontSize: typography.caption.fontSize,
 	},
 
-	// Sort + Online row
+	// Status badge (inline with title)
+	statusBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+	},
+	statusDot: {
+		width: 8,
+		height: 8,
+		borderRadius: 4,
+	},
+	statusText: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: "600",
+	},
+
+	// Sort row
 	sortRow: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: spacing.xs,
-	},
-	onlinePill: {
-		flexDirection: "row",
-		alignItems: "center",
-		paddingHorizontal: spacing.sm,
-		paddingVertical: 4,
-		borderRadius: 12,
-		gap: spacing.xs,
-		marginRight: spacing.xs,
-	},
-	onlineDot: {
-		width: 6,
-		height: 6,
-		borderRadius: 3,
-	},
-	onlineText: {
-		fontSize: typography.caption.fontSize,
-		fontWeight: "600",
-		color: colors.textPrimary,
 	},
 	sortChip: {
 		paddingHorizontal: spacing.md,
@@ -293,3 +287,4 @@ const styles = StyleSheet.create({
 		borderRadius: components.cardRadius,
 	},
 });
+

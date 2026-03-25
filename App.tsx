@@ -144,7 +144,9 @@ function AuthFlow({ onComplete }: { onComplete: () => void }) {
 			<AuthStack.Screen name="Welcome">
 				{(props) => <WelcomeScreen {...props} onGuestAccess={onComplete} />}
 			</AuthStack.Screen>
-			<AuthStack.Screen name="Login" component={LoginScreen} />
+			<AuthStack.Screen name="Login">
+				{(props) => <LoginScreen {...props} onLogin={onComplete} />}
+			</AuthStack.Screen>
 			<AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
 			<AuthStack.Screen name="Preferences">
 				{(props) => <PreferencesScreen {...props} onComplete={onComplete} />}

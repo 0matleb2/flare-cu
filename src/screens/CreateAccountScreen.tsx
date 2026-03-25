@@ -22,15 +22,30 @@ export const CreateAccountScreen = () => {
 		}
 	};
 
+	const isFormValid = !!email && !emailError;
+
 	const handleCreate = () => {
-		if (!email || emailError) return;
+		if (!isFormValid) return;
 		navigation.navigate("Preferences");
 	};
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+			<Button
+				mode="text"
+				onPress={() => navigation.goBack()}
+				textColor={colors.burgundy}
+				labelStyle={styles.backLabel}
+				contentStyle={styles.backContent}
+				style={styles.backButton}
+				icon="arrow-left"
+			>
+				Back
+			</Button>
+
 			<Text style={styles.title}>Create account</Text>
 
+			{/* Form → CTA → cross-link → guest: single top-to-bottom flow */}
 			<View style={styles.form}>
 				<TextInput
 					mode="outlined"
@@ -63,26 +78,42 @@ export const CreateAccountScreen = () => {
 					activeOutlineColor={colors.burgundy}
 				/>
 
+				{/* Primary CTA — immediately after last input */}
 				<Button
 					mode="contained"
 					onPress={handleCreate}
-					buttonColor={colors.burgundy}
+					buttonColor={isFormValid ? colors.burgundy : "#C4A0B0"}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
-					style={styles.button}
-					disabled={!email || !!emailError}
+					style={styles.primaryButton}
 				>
 					Create account
 				</Button>
 
+				{/* Auth-switch — secondary action right below CTA */}
+				<View style={styles.crossLink}>
+					<Text style={styles.crossLinkText}>Already have an account?</Text>
+					<Button
+						mode="text"
+						onPress={() => navigation.navigate("Login")}
+						textColor={colors.burgundy}
+						labelStyle={styles.crossLinkLabel}
+						compact
+					>
+						Login
+					</Button>
+				</View>
+
+				{/* Guest — tertiary, lowest priority, doesn't interrupt flow */}
 				<Button
 					mode="text"
 					onPress={() => navigation.navigate("Preferences")}
-					textColor={colors.burgundy}
-					labelStyle={styles.secondaryLabel}
+					textColor={colors.textSecondary}
+					labelStyle={styles.guestLabel}
+					compact
 				>
-					Skip for now
+					Continue as guest
 				</Button>
 			</View>
 		</View>
@@ -95,6 +126,17 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.background,
 		paddingHorizontal: components.screenPaddingH,
 	},
+	backButton: {
+		alignSelf: "flex-start",
+		marginBottom: spacing.sm,
+	},
+	backContent: {
+		flexDirection: "row-reverse",
+	},
+	backLabel: {
+		fontSize: typography.body.fontSize,
+		fontWeight: typography.button.fontWeight,
+	},
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
@@ -102,14 +144,14 @@ const styles = StyleSheet.create({
 		marginBottom: spacing.lg,
 	},
 	form: {
-		gap: spacing.md,
+		gap: spacing.sm,
 	},
 	input: {
 		backgroundColor: colors.surface,
 	},
-	button: {
+	primaryButton: {
 		borderRadius: components.cardRadius,
-		marginTop: spacing.sm,
+		marginTop: spacing.xs,
 	},
 	buttonContent: {
 		minHeight: components.touchTarget,
@@ -118,8 +160,23 @@ const styles = StyleSheet.create({
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
-	secondaryLabel: {
+	crossLink: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: spacing.xs,
+	},
+	crossLinkText: {
+		fontSize: typography.body.fontSize,
+		color: "#4B5563",
+	},
+	crossLinkLabel: {
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.button.fontWeight,
+	},
+	guestLabel: {
+		fontSize: typography.body.fontSize,
+		fontWeight: "500",
+		textDecorationLine: "underline",
 	},
 });

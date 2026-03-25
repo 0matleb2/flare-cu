@@ -15,12 +15,18 @@ export const WelcomeScreen = ({ onGuestAccess }: WelcomeScreenProps) => {
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+			{/* ── Hero: brand identity ─────────────────────────── */}
 			<View style={styles.hero}>
 				<Text style={styles.title}>Flare CU</Text>
-				<Text style={styles.subtitle}>Campus safety, community-driven.</Text>
+				<Text style={styles.subtitle}>
+					Real-time safety alerts and safe-route guidance for the Concordia
+					community.
+				</Text>
 			</View>
 
+			{/* ── Actions: clear hierarchy ────────────────────── */}
 			<View style={styles.actions}>
+				{/* Primary CTA */}
 				<Button
 					mode="contained"
 					onPress={() => navigation.navigate("Login")}
@@ -32,6 +38,8 @@ export const WelcomeScreen = ({ onGuestAccess }: WelcomeScreenProps) => {
 				>
 					Login
 				</Button>
+
+				{/* Secondary CTA */}
 				<Button
 					mode="outlined"
 					onPress={() => navigation.navigate("CreateAccount")}
@@ -42,23 +50,28 @@ export const WelcomeScreen = ({ onGuestAccess }: WelcomeScreenProps) => {
 				>
 					Create account
 				</Button>
-				<Button
-					mode="outlined"
-					onPress={() => {
-						if (onGuestAccess) {
-							onGuestAccess();
-						} else {
-							navigation.navigate("Preferences");
-						}
-					}}
-					textColor={colors.burgundy}
-					labelStyle={styles.buttonLabel}
-					contentStyle={styles.buttonContent}
-					style={[styles.button, styles.outlineButton]}
-				>
-					Continue as guest
-				</Button>
-				<Text style={styles.helper}>You can set preferences later</Text>
+
+				{/* Tertiary: text-only button, visually distinct from above */}
+				<View style={styles.guestSection}>
+					<Button
+						mode="text"
+						onPress={() => {
+							if (onGuestAccess) {
+								onGuestAccess();
+							} else {
+								navigation.navigate("Preferences");
+							}
+						}}
+						textColor={colors.textSecondary}
+						labelStyle={styles.guestLabel}
+						compact
+					>
+						Continue as guest
+					</Button>
+					<Text style={styles.helper}>
+						Browse alerts without an account — you can sign up later
+					</Text>
+				</View>
 			</View>
 		</View>
 	);
@@ -69,7 +82,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: colors.background,
 		paddingHorizontal: components.screenPaddingH,
-		justifyContent: "space-between",
+		justifyContent: "flex-end",
 		paddingBottom: spacing.xl,
 	},
 	hero: {
@@ -77,6 +90,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 		alignItems: "center",
 		gap: spacing.sm,
+		paddingHorizontal: spacing.base,
 	},
 	title: {
 		fontSize: 32,
@@ -86,6 +100,8 @@ const styles = StyleSheet.create({
 	subtitle: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
+		textAlign: "center",
+		lineHeight: 20,
 	},
 	actions: {
 		gap: spacing.md,
@@ -103,10 +119,19 @@ const styles = StyleSheet.create({
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
+	guestSection: {
+		alignItems: "center",
+		marginTop: -spacing.xs,
+		gap: 2,
+	},
+	guestLabel: {
+		fontSize: typography.body.fontSize,
+		fontWeight: "500",
+		textDecorationLine: "underline",
+	},
 	helper: {
 		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
+		color: "#4B5563",
 		textAlign: "center",
-		marginTop: spacing.xs,
 	},
 });
