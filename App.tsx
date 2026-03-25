@@ -20,6 +20,7 @@ import type {
 import { ActionPlanScreen } from "./src/screens/ActionPlanScreen";
 // Screens – Auth
 import { CreateAccountScreen } from "./src/screens/CreateAccountScreen";
+import { LoginScreen } from "./src/screens/LoginScreen";
 // Emergency
 import { EmergencyShell } from "./src/screens/EmergencyShell";
 import { FlareDetailScreen } from "./src/screens/FlareDetailScreen";
@@ -143,6 +144,7 @@ function AuthFlow({ onComplete }: { onComplete: () => void }) {
 			<AuthStack.Screen name="Welcome">
 				{(props) => <WelcomeScreen {...props} onGuestAccess={onComplete} />}
 			</AuthStack.Screen>
+			<AuthStack.Screen name="Login" component={LoginScreen} />
 			<AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
 			<AuthStack.Screen name="Preferences">
 				{(props) => <PreferencesScreen {...props} onComplete={onComplete} />}

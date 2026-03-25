@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 // ── Auth Stack (first-launch / guest) ───────────────────────
 export type AuthStackParamList = {
 	Welcome: undefined;
+	Login: undefined;
 	CreateAccount: undefined;
 	Preferences: undefined;
 };
@@ -55,6 +56,10 @@ export type RootStackParamList = {
 export type WelcomeScreenNavProp = NativeStackNavigationProp<
 	AuthStackParamList,
 	"Welcome"
+>;
+export type LoginScreenNavProp = NativeStackNavigationProp<
+	AuthStackParamList,
+	"Login"
 >;
 export type CreateAccountScreenNavProp = NativeStackNavigationProp<
 	AuthStackParamList,

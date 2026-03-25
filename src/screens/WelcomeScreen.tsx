@@ -23,14 +23,24 @@ export const WelcomeScreen = ({ onGuestAccess }: WelcomeScreenProps) => {
 			<View style={styles.actions}>
 				<Button
 					mode="contained"
-					onPress={() => navigation.navigate("CreateAccount")}
+					onPress={() => navigation.navigate("Login")}
 					buttonColor={colors.burgundy}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
 					style={styles.button}
 				>
-					Continue with email
+					Login
+				</Button>
+				<Button
+					mode="outlined"
+					onPress={() => navigation.navigate("CreateAccount")}
+					textColor={colors.burgundy}
+					labelStyle={styles.buttonLabel}
+					contentStyle={styles.buttonContent}
+					style={[styles.button, styles.outlineButton]}
+				>
+					Create account
 				</Button>
 				<Button
 					mode="outlined"
