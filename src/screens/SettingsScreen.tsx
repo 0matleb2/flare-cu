@@ -8,7 +8,7 @@ import {
 	useResetPreferences,
 	useUpdatePreferences,
 } from "../hooks/usePreferences";
-import type { NearbyFeedNavProp } from "../navigation/types";
+import type { SettingsMainNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
 export interface SettingsScreenProps {
@@ -20,7 +20,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const { data: prefs } = usePreferences();
 	const updatePref = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
-	const navigation = useNavigation<NearbyFeedNavProp>();
+	const navigation = useNavigation<SettingsMainNavProp>();
 
 	// Local state mirroring prefs
 	const [alertHigh, setAlertHigh] = useState(prefs?.alertIntensity === "high");
@@ -128,7 +128,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 				<Button
 					mode="outlined"
 					icon="help-circle-outline"
-					onPress={() => navigation.navigate("NearbyTab", { screen: "Help" })}
+					onPress={() => navigation.navigate("Help")}
 					textColor={colors.textPrimary}
 					style={styles.supportButton}
 					labelStyle={styles.supportLabel}
@@ -188,6 +188,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+		backgroundColor: colors.background,
 		paddingHorizontal: components.screenPaddingH,
 	},
 	title: {

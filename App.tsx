@@ -15,11 +15,14 @@ import type {
 	MainTabParamList,
 	NearbyStackParamList,
 	RouteStackParamList,
+	SavedStackParamList,
+	SettingsStackParamList,
 } from "./src/navigation/types";
 // Screens – Nearby stack
 import { ActionPlanScreen } from "./src/screens/ActionPlanScreen";
 // Screens – Auth
 import { CreateAccountScreen } from "./src/screens/CreateAccountScreen";
+import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 // Emergency
 import { EmergencyShell } from "./src/screens/EmergencyShell";
@@ -46,6 +49,8 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const NearbyStack = createNativeStackNavigator<NearbyStackParamList>();
 const RouteStack = createNativeStackNavigator<RouteStackParamList>();
+const SavedStack = createNativeStackNavigator<SavedStackParamList>();
+const SettStack = createNativeStackNavigator<SettingsStackParamList>();
 
 const queryClient = new QueryClient();
 
@@ -115,14 +120,23 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 			/>
 			<Tab.Screen
 				name="SavedTab"
-				component={SavedScreen}
 				options={{
 					tabBarLabel: "Saved",
 					tabBarIcon: ({ color, size }) => (
 						<Icon source="bookmark-outline" color={color} size={size} />
 					),
 				}}
-			/>
+			>
+				{() => (
+					<SavedStack.Navigator screenOptions={{ headerShown: false }}>
+						<SavedStack.Screen name="SavedMain" component={SavedScreen} />
+						<SavedStack.Screen
+							name="FlareDetail"
+							component={FlareDetailScreen}
+						/>
+					</SavedStack.Navigator>
+				)}
+			</Tab.Screen>
 			<Tab.Screen
 				name="SettingsTab"
 				options={{
@@ -132,7 +146,14 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 					),
 				}}
 			>
-				{() => <SettingsScreen onLogout={onLogout} />}
+				{() => (
+					<SettStack.Navigator screenOptions={{ headerShown: false }}>
+						<SettStack.Screen name="SettingsMain">
+							{() => <SettingsScreen onLogout={onLogout} />}
+						</SettStack.Screen>
+						<SettStack.Screen name="Help" component={HelpScreen} />
+					</SettStack.Navigator>
+				)}
 			</Tab.Screen>
 		</Tab.Navigator>
 	);
@@ -151,6 +172,10 @@ function AuthFlow({ onComplete }: { onComplete: () => void }) {
 			<AuthStack.Screen name="Preferences">
 				{(props) => <PreferencesScreen {...props} onComplete={onComplete} />}
 			</AuthStack.Screen>
+			<AuthStack.Screen
+				name="ForgotPassword"
+				component={ForgotPasswordScreen}
+			/>
 		</AuthStack.Navigator>
 	);
 }

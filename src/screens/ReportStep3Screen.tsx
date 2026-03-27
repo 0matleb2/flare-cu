@@ -1,6 +1,6 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,8 +14,6 @@ import type { FlareCategory } from "../types";
 
 type Step3Route = RouteProp<NearbyStackParamList, "ReportStep3">;
 
-const RETRACT_SECONDS = 10;
-
 export const ReportStep3Screen = () => {
 	const navigation = useNavigation<ReportStep3NavProp>();
 	const route = useRoute<Step3Route>();
@@ -23,30 +21,6 @@ export const ReportStep3Screen = () => {
 	const createFlare = useCreateFlare();
 
 	const [note, setNote] = useState("");
-	const [submitted, setSubmitted] = useState(false);
-	const [retracted, setRetracted] = useState(false);
-	const [countdown, setCountdown] = useState(RETRACT_SECONDS);
-
-	// Countdown timer after submission
-	useEffect(() => {
-		if (!submitted || retracted) return;
-		if (countdown <= 0) {
-			// Auto-navigate back to feed
-			navigation.popToTop();
-			return;
-		}
-		const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-		return () => clearTimeout(timer);
-	}, [submitted, retracted, countdown, navigation]);
-
-	// Auto-return after retract
-	useEffect(() => {
-		if (!retracted) return;
-		const timer = setTimeout(() => {
-			navigation.popToTop();
-		}, 2000);
-		return () => clearTimeout(timer);
-	}, [retracted, navigation]);
 
 	const handleSubmit = useCallback(() => {
 		createFlare.mutate(
@@ -57,79 +31,16 @@ export const ReportStep3Screen = () => {
 				note: note || undefined,
 			},
 			{
-				onSuccess: () => {
-					setSubmitted(true);
-					setCountdown(RETRACT_SECONDS);
+				onSuccess: (newFlare) => {
+					// Navigate back to feed with the new flare ID for snackbar undo
+					navigation.navigate("NearbyFeed", {
+						justCreatedFlareId: newFlare.id,
+					});
 				},
 			},
 		);
-	}, [createFlare, route.params, note]);
+	}, [createFlare, route.params, note, navigation]);
 
-	const handleRetract = () => {
-		setRetracted(true);
-	};
-
-	// ═══ Submitted state with countdown ═══
-	if (submitted) {
-		return (
-			<View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
-				<View style={styles.successContent}>
-					{retracted ? (
-						<>
-							<Text style={styles.retractedEmoji}>↩</Text>
-							<Text style={styles.retractedTitle}>Flare retracted</Text>
-							<Text style={styles.successBody}>
-								Your flare has been retracted. Returning to feed...
-							</Text>
-						</>
-					) : (
-						<>
-							<Text style={styles.successEmoji}>✓</Text>
-							<Text style={styles.successTitle}>Flare raised</Text>
-							<Text style={styles.successBody}>
-								Your flare has been submitted. Thank you for helping the
-								community.
-							</Text>
-
-							{/* Status */}
-							<View style={styles.statusCard}>
-								<Text style={styles.statusLabel}>Awaiting verification</Text>
-								<Text style={styles.statusBody}>
-									Other users can confirm your flare. Campus safety may verify
-									it officially.
-								</Text>
-							</View>
-
-							{/* Countdown + retract */}
-							<View style={styles.countdownSection}>
-								<View style={styles.countdownCircle}>
-									<Text style={styles.countdownNumber}>{countdown}</Text>
-								</View>
-								<Text style={styles.countdownLabel}>
-									{countdown > 0
-										? `Retract within ${countdown}s`
-										: "Returning to feed..."}
-								</Text>
-								{countdown > 0 && (
-									<Button
-										mode="outlined"
-										onPress={handleRetract}
-										textColor={colors.statusCaution}
-										style={styles.retractButton}
-										labelStyle={styles.retractLabel}
-									>
-										Retract flare
-									</Button>
-								)}
-							</View>
-						</>
-					)}
-				</View>
-			</View>
-		);
-	}
-
-	// ═══ Input state ═══
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
 			<View style={styles.header}>
@@ -228,16 +139,15 @@ const styles = StyleSheet.create({
 	},
 	progressSegment: {
 		flex: 1,
-		height: 4,
-		borderRadius: 2,
+		height: 6,
+		borderRadius: 3,
 		backgroundColor: colors.border,
 	},
 	progressDone: {
 		backgroundColor: colors.burgundy,
 	},
 	progressCurrent: {
-		backgroundColor: colors.burgundy,
-		opacity: 0.5,
+		backgroundColor: `${colors.burgundy}40`,
 	},
 	input: {
 		backgroundColor: colors.surface,
@@ -259,97 +169,5 @@ const styles = StyleSheet.create({
 	buttonLabel: {
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
-	},
-
-	// Success state
-	successContent: {
-		flex: 1,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: components.screenPaddingH,
-		gap: spacing.md,
-	},
-	successEmoji: {
-		fontSize: 48,
-		color: colors.burgundy,
-	},
-	successTitle: {
-		fontSize: 24,
-		fontWeight: "700",
-		color: colors.burgundy,
-	},
-	successBody: {
-		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
-		textAlign: "center",
-		maxWidth: 280,
-	},
-
-	// Status card
-	statusCard: {
-		backgroundColor: colors.surface,
-		borderRadius: components.cardRadius,
-		borderWidth: 1,
-		borderColor: colors.border,
-		padding: spacing.md,
-		gap: spacing.xs,
-		width: "100%",
-		maxWidth: 320,
-	},
-	statusLabel: {
-		fontSize: 13,
-		fontWeight: "600",
-		color: colors.textSecondary,
-		textTransform: "uppercase",
-		letterSpacing: 1,
-	},
-	statusBody: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-		lineHeight: 18,
-	},
-
-	// Countdown
-	countdownSection: {
-		alignItems: "center",
-		gap: spacing.sm,
-		marginTop: spacing.sm,
-	},
-	countdownCircle: {
-		width: 56,
-		height: 56,
-		borderRadius: 28,
-		borderWidth: 3,
-		borderColor: colors.burgundy,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	countdownNumber: {
-		fontSize: 24,
-		fontWeight: "700",
-		color: colors.burgundy,
-	},
-	countdownLabel: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-	},
-	retractButton: {
-		borderColor: colors.statusCaution,
-		borderRadius: components.cardRadius,
-	},
-	retractLabel: {
-		fontSize: typography.body.fontSize,
-		fontWeight: typography.button.fontWeight,
-	},
-
-	// Retracted state
-	retractedEmoji: {
-		fontSize: 48,
-		color: colors.textSecondary,
-	},
-	retractedTitle: {
-		fontSize: 24,
-		fontWeight: "700",
-		color: colors.textSecondary,
 	},
 });

@@ -5,11 +5,17 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFlares } from "../hooks/useFlares";
-import type { NearbyStackParamList } from "../navigation/types";
+import type {
+	NearbyStackParamList,
+	RouteStackParamList,
+} from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 import { CATEGORY_LABELS } from "../types";
 
-type ActionPlanRoute = RouteProp<NearbyStackParamList, "ActionPlan">;
+// This screen is used from both NearbyStack (ActionPlan) and RouteStack (RouteActionPlan).
+type ActionPlanRoute =
+	| RouteProp<NearbyStackParamList, "ActionPlan">
+	| RouteProp<RouteStackParamList, "RouteActionPlan">;
 
 interface DirectionStep {
 	instruction: string;
@@ -156,7 +162,13 @@ export const ActionPlanScreen = () => {
 	const { data: flares = [] } = useFlares();
 
 	const flare = flares.find((f) => f.id === route.params.planId);
-	const directions = getDirections(flare?.building, flare?.entrance);
+
+	// When launched from Route flow, no matching flare exists — use route params as fallback
+	const building =
+		flare?.building ?? (route.params as { building?: string }).building;
+	const entrance =
+		flare?.entrance ?? (route.params as { entrance?: string }).entrance;
+	const directions = getDirections(building, entrance);
 
 	const [currentStep, setCurrentStep] = useState(0);
 	const [completed, setCompleted] = useState<Set<number>>(new Set());

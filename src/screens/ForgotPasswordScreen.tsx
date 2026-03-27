@@ -3,16 +3,15 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { CreateAccountScreenNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
-export const CreateAccountScreen = () => {
-	const navigation = useNavigation<CreateAccountScreenNavProp>();
+export const ForgotPasswordScreen = () => {
+	const navigation = useNavigation();
 	const insets = useSafeAreaInsets();
 
 	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
 	const [emailError, setEmailError] = useState("");
+	const [sent, setSent] = useState(false);
 
 	const validateEmail = (value: string) => {
 		if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
@@ -22,12 +21,42 @@ export const CreateAccountScreen = () => {
 		}
 	};
 
-	const isFormValid = !!email && !emailError && !!password;
+	const isFormValid = !!email && !emailError;
 
-	const handleCreate = () => {
+	const handleSend = () => {
 		if (!isFormValid) return;
-		navigation.navigate("Preferences");
+		// Simulated — no real email is sent
+		setSent(true);
 	};
+
+	if (sent) {
+		return (
+			<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+				<View style={styles.sentContent}>
+					<Text style={styles.sentEmoji}>✉️</Text>
+					<Text style={styles.sentTitle}>Check your email</Text>
+					<Text style={styles.sentBody}>
+						We've sent a password reset link to{"\n"}
+						<Text style={styles.sentEmail}>{email}</Text>
+					</Text>
+					<Text style={styles.sentHint}>
+						If you don't see it, check your spam folder.
+					</Text>
+					<Button
+						mode="contained"
+						onPress={() => navigation.goBack()}
+						buttonColor={colors.burgundy}
+						textColor="#FFFFFF"
+						labelStyle={styles.buttonLabel}
+						contentStyle={styles.buttonContent}
+						style={styles.button}
+					>
+						Back to login
+					</Button>
+				</View>
+			</View>
+		);
+	}
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
@@ -43,9 +72,11 @@ export const CreateAccountScreen = () => {
 				Back
 			</Button>
 
-			<Text style={styles.title}>Create account</Text>
+			<Text style={styles.title}>Forgot password</Text>
+			<Text style={styles.subtitle}>
+				Enter your email and we'll send you a link to reset your password.
+			</Text>
 
-			{/* Form → CTA → cross-link → guest: single top-to-bottom flow */}
 			<View style={styles.form}>
 				<TextInput
 					mode="outlined"
@@ -67,53 +98,16 @@ export const CreateAccountScreen = () => {
 					</HelperText>
 				)}
 
-				<TextInput
-					mode="outlined"
-					label="Password"
-					value={password}
-					onChangeText={setPassword}
-					secureTextEntry
-					style={styles.input}
-					outlineColor={colors.border}
-					activeOutlineColor={colors.burgundy}
-				/>
-
-				{/* Primary CTA — immediately after last input */}
 				<Button
 					mode="contained"
-					onPress={handleCreate}
+					onPress={handleSend}
 					buttonColor={isFormValid ? colors.burgundy : "#C4A0B0"}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
-					style={styles.primaryButton}
+					style={styles.button}
 				>
-					Create account
-				</Button>
-
-				{/* Auth-switch — secondary action right below CTA */}
-				<View style={styles.crossLink}>
-					<Text style={styles.crossLinkText}>Already have an account?</Text>
-					<Button
-						mode="text"
-						onPress={() => navigation.navigate("Login")}
-						textColor={colors.burgundy}
-						labelStyle={styles.crossLinkLabel}
-						compact
-					>
-						Login
-					</Button>
-				</View>
-
-				{/* Guest — tertiary, lowest priority, doesn't interrupt flow */}
-				<Button
-					mode="text"
-					onPress={() => navigation.navigate("Preferences")}
-					textColor={colors.textSecondary}
-					labelStyle={styles.guestLabel}
-					compact
-				>
-					Continue as guest
+					Send reset link
 				</Button>
 			</View>
 		</View>
@@ -141,6 +135,12 @@ const styles = StyleSheet.create({
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
+		marginBottom: spacing.xs,
+	},
+	subtitle: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 22,
 		marginBottom: spacing.lg,
 	},
 	form: {
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
 	input: {
 		backgroundColor: colors.surface,
 	},
-	primaryButton: {
+	button: {
 		borderRadius: components.cardRadius,
 		marginTop: spacing.xs,
 	},
@@ -160,23 +160,36 @@ const styles = StyleSheet.create({
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
-	crossLink: {
-		flexDirection: "row",
-		alignItems: "center",
+
+	// Sent confirmation
+	sentContent: {
+		flex: 1,
 		justifyContent: "center",
-		gap: spacing.xs,
+		alignItems: "center",
+		paddingHorizontal: components.screenPaddingH,
+		gap: spacing.md,
 	},
-	crossLinkText: {
-		fontSize: typography.body.fontSize,
-		color: "#4B5563",
+	sentEmoji: {
+		fontSize: 48,
 	},
-	crossLinkLabel: {
-		fontSize: typography.body.fontSize,
-		fontWeight: typography.button.fontWeight,
+	sentTitle: {
+		fontSize: 24,
+		fontWeight: "700",
+		color: colors.textPrimary,
 	},
-	guestLabel: {
+	sentBody: {
 		fontSize: typography.body.fontSize,
-		fontWeight: "500",
-		textDecorationLine: "underline",
+		color: colors.textSecondary,
+		textAlign: "center",
+		lineHeight: 22,
+	},
+	sentEmail: {
+		fontWeight: "600",
+		color: colors.textPrimary,
+	},
+	sentHint: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textDisabled,
+		textAlign: "center",
 	},
 });

@@ -197,13 +197,12 @@ const styles = StyleSheet.create({
 	},
 	progressSegment: {
 		flex: 1,
-		height: 4,
-		borderRadius: 2,
+		height: 6,
+		borderRadius: 3,
 		backgroundColor: colors.border,
 	},
 	progressCurrent: {
-		backgroundColor: colors.burgundy,
-		opacity: 0.5,
+		backgroundColor: `${colors.burgundy}40`,
 	},
 
 	// Category tiles
