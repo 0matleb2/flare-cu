@@ -11,11 +11,12 @@ export type AuthStackParamList = {
 	Login: undefined;
 	CreateAccount: undefined;
 	Preferences: undefined;
+	ForgotPassword: undefined;
 };
 
 // ── Nearby Stack (nested in tab) ────────────────────────────
 export type NearbyStackParamList = {
-	NearbyFeed: undefined;
+	NearbyFeed: { justCreatedFlareId?: string } | undefined;
 	FlareDetail: { flareId: string };
 	ReportStep1: undefined;
 	ReportStep2: { category: string };
@@ -33,15 +34,27 @@ export type RouteStackParamList = {
 		mobilityFriendly: boolean;
 		lowStimulation: boolean;
 	};
-	RouteActionPlan: { planId: string };
+	RouteActionPlan: { planId: string; building?: string; entrance?: string };
+};
+
+// ── Settings Stack (nested in tab) ──────────────────────────
+export type SettingsStackParamList = {
+	SettingsMain: undefined;
+	Help: undefined;
+};
+
+// ── Saved Stack (nested in tab) ─────────────────────────────
+export type SavedStackParamList = {
+	SavedMain: undefined;
+	FlareDetail: { flareId: string };
 };
 
 // ── Main Tab Navigator ──────────────────────────────────────
 export type MainTabParamList = {
 	NearbyTab: NavigatorScreenParams<NearbyStackParamList>;
 	RouteTab: NavigatorScreenParams<RouteStackParamList>;
-	SavedTab: undefined;
-	SettingsTab: undefined;
+	SavedTab: NavigatorScreenParams<SavedStackParamList>;
+	SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 // ── Root (switches between Auth and Main) ───────────────────
@@ -98,6 +111,18 @@ export type ActionPlanNavProp = NativeStackNavigationProp<
 export type HelpNavProp = NativeStackNavigationProp<
 	NearbyStackParamList,
 	"Help"
+>;
+
+// Settings stack screens
+export type SettingsMainNavProp = NativeStackNavigationProp<
+	SettingsStackParamList,
+	"SettingsMain"
+>;
+
+// Saved stack screens
+export type SavedMainNavProp = NativeStackNavigationProp<
+	SavedStackParamList,
+	"SavedMain"
 >;
 
 // Route stack screens

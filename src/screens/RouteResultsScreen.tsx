@@ -136,7 +136,10 @@ export const RouteResultsScreen = () => {
 							contentStyle={styles.buttonContent}
 							style={styles.startButton}
 							onPress={() =>
-								navigation.navigate("RouteActionPlan", { planId: r.id })
+								navigation.navigate("RouteActionPlan", {
+									planId: r.id,
+									building: route.params.to,
+								})
 							}
 						>
 							Start plan

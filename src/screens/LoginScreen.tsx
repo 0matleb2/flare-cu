@@ -26,7 +26,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 		}
 	};
 
-	const isFormValid = !!email && !emailError;
+	const isFormValid = !!email && !emailError && !!password;
 
 	const handleLogin = () => {
 		if (!isFormValid) return;
@@ -94,6 +94,17 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 					style={styles.primaryButton}
 				>
 					Login
+				</Button>
+
+				{/* Forgot password */}
+				<Button
+					mode="text"
+					onPress={() => navigation.navigate("ForgotPassword")}
+					textColor={colors.textSecondary}
+					labelStyle={styles.forgotLabel}
+					compact
+				>
+					Forgot password?
 				</Button>
 
 				{/* Auth-switch — secondary action right below CTA */}
@@ -167,5 +178,8 @@ const styles = StyleSheet.create({
 	crossLinkLabel: {
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.button.fontWeight,
+	},
+	forgotLabel: {
+		fontSize: typography.caption.fontSize,
 	},
 });

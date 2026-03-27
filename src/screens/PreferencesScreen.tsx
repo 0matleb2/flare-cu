@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Button, SegmentedButtons, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, components, spacing, typography } from "../theme";
+import { PreferencesService } from "../services/PreferencesService";
 
 interface PreferencesScreenProps {
 	onComplete?: () => void;
@@ -16,8 +17,13 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 	const [alertsEnabled, setAlertsEnabled] = useState(false);
 	const [alertIntensity, setAlertIntensity] = useState<string>("low");
 
-	const handleContinue = () => {
-		// In a real app, save preferences here via PreferencesService
+	const handleContinue = async () => {
+		// Persist preferences so they are available in the main app
+		await PreferencesService.savePreferences({
+			mobilityFriendly,
+			lowStimulation,
+			alertIntensity: alertsEnabled ? "high" : "low",
+		});
 		onComplete?.();
 	};
 
@@ -80,7 +86,7 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 							onValueChange={setAlertIntensity}
 							buttons={[
 								{ value: "low", label: "Low" },
-								{ value: "medium", label: "Medium" },
+								{ value: "high", label: "High" },
 							]}
 							style={styles.segmented}
 						/>

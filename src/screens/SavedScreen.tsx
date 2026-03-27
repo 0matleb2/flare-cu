@@ -4,13 +4,13 @@ import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlareCard } from "../components/FlareCard";
 import { useFlares } from "../hooks/useFlares";
-import type { NearbyFeedNavProp } from "../navigation/types";
+import type { SavedMainNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 
 export const SavedScreen = () => {
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
-	const navigation = useNavigation<NearbyFeedNavProp>();
+	const navigation = useNavigation<SavedMainNavProp>();
 
 	const savedFlares = flares.filter((f) => f.savedByUser);
 	const syncTime = new Date().toLocaleTimeString([], {
@@ -37,9 +37,8 @@ export const SavedScreen = () => {
 							key={flare.id}
 							flare={flare}
 							onPress={() =>
-								navigation.navigate("NearbyTab", {
-									screen: "FlareDetail",
-									params: { flareId: flare.id },
+								navigation.navigate("FlareDetail", {
+									flareId: flare.id,
 								})
 							}
 						/>

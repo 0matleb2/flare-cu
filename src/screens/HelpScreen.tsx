@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
+import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { Button, List, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, components, spacing, typography } from "../theme";
 
@@ -15,7 +16,7 @@ const SECTIONS = [
 	},
 	{
 		title: "How to report a flare",
-		body: "1. Tap the + Report button on the Nearby feed.\n2. Pick a category (blocked entrance, dense crowd, etc.).\n3. Confirm or edit the auto-detected location.\n4. Add an optional note (140 characters max).\n5. Submit. You can retract within 2 minutes if you change your mind.",
+		body: '1. Tap the "Raise a flare" button on the Nearby feed.\n2. Pick a category (blocked entrance, dense crowd, etc.).\n3. Confirm or edit the auto-detected location.\n4. Add an optional note (140 characters max).\n5. Submit. You can retract within 10 seconds if you change your mind.',
 	},
 	{
 		title: "Route guidance",
@@ -31,7 +32,7 @@ const SECTIONS = [
 	},
 	{
 		title: "Settings explained",
-		body: "• Alert intensity: Low hides unconfirmed (reported-only) flares on the feed. Medium shows everything.\n\n• Notification radius: Near me shows flares in your immediate area. SGW wide shows the full campus.\n\n• Mobility-friendly: Prioritizes routes with ramps, elevators, and level pathways.\n\n• Low stimulation: Removes animations and simplifies alert presentation.\n\n• Offline caching: When off, the app works in offline mode with cached data.",
+		body: "• Alert intensity: Low hides unconfirmed (reported-only) flares on the feed. High shows everything.\n\n• Mobility-friendly: Prioritizes routes with ramps, elevators, and level pathways.\n\n• Low stimulation: Removes animations and simplifies alert presentation.\n\n• Offline caching: When off, the app works in offline mode with cached data.",
 	},
 	{
 		title: "Campus coverage",
@@ -42,6 +43,13 @@ const SECTIONS = [
 export const HelpScreen = () => {
 	const navigation = useNavigation();
 	const insets = useSafeAreaInsets();
+	const [expandedId, setExpandedId] = useState<string | null>(
+		SECTIONS[0].title,
+	);
+
+	const handlePress = (id: string) => {
+		setExpandedId((prev) => (prev === id ? null : id));
+	};
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -59,12 +67,37 @@ export const HelpScreen = () => {
 			<ScrollView contentContainerStyle={styles.content}>
 				<Text style={styles.title}>Help & Documentation</Text>
 
-				{SECTIONS.map((section) => (
-					<View key={section.title} style={styles.card}>
-						<Text style={styles.cardTitle}>{section.title}</Text>
-						<Text style={styles.cardBody}>{section.body}</Text>
-					</View>
-				))}
+				<View style={styles.accordionGroup}>
+					{SECTIONS.map((section) => (
+						<List.Accordion
+							key={section.title}
+							title={section.title}
+							expanded={expandedId === section.title}
+							onPress={() => handlePress(section.title)}
+							titleStyle={styles.accordionTitle}
+							style={[
+								styles.accordionHeader,
+								expandedId === section.title &&
+									styles.accordionHeaderExpanded,
+							]}
+							right={(props) => (
+								<List.Icon
+									{...props}
+									icon={
+										expandedId === section.title
+											? "chevron-up"
+											: "chevron-down"
+									}
+									color={colors.textSecondary}
+								/>
+							)}
+						>
+							<View style={styles.accordionBody}>
+								<Text style={styles.bodyText}>{section.body}</Text>
+							</View>
+						</List.Accordion>
+					))}
+				</View>
 			</ScrollView>
 		</View>
 	);
@@ -83,28 +116,43 @@ const styles = StyleSheet.create({
 	content: {
 		paddingHorizontal: components.screenPaddingH,
 		paddingBottom: spacing.xl,
-		gap: components.cardGap,
+		gap: spacing.sm,
 	},
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
-		marginBottom: spacing.sm,
+		marginBottom: spacing.xs,
 	},
-	card: {
-		backgroundColor: colors.surface,
+	accordionGroup: {
 		borderRadius: components.cardRadius,
+		overflow: "hidden",
 		borderWidth: components.cardBorderWidth,
 		borderColor: colors.border,
-		padding: components.cardPadding,
-		gap: spacing.sm,
 	},
-	cardTitle: {
-		fontSize: typography.h2.fontSize,
+	accordionHeader: {
+		backgroundColor: colors.surface,
+		borderBottomWidth: 1,
+		borderBottomColor: colors.border,
+		paddingVertical: 2,
+	},
+	accordionHeaderExpanded: {
+		backgroundColor: colors.surface,
+	},
+	accordionTitle: {
+		fontSize: typography.body.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
 	},
-	cardBody: {
+	accordionBody: {
+		backgroundColor: colors.surface,
+		paddingHorizontal: spacing.lg,
+		paddingTop: 0,
+		paddingBottom: spacing.md,
+		borderBottomWidth: 1,
+		borderBottomColor: colors.border,
+	},
+	bodyText: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
 		lineHeight: 20,

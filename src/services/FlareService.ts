@@ -359,6 +359,16 @@ export const FlareService = {
 		}
 	},
 
+	async deleteFlare(id: string): Promise<void> {
+		try {
+			const flares = await this.getFlares();
+			const updated = flares.filter((f) => f.id !== id);
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+		} catch (e) {
+			console.error("Failed to delete flare", e);
+		}
+	},
+
 	// ── Offline queue helpers ────────────────────────────────
 	async getQueueCount(): Promise<number> {
 		try {

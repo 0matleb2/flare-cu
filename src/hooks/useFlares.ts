@@ -92,3 +92,28 @@ export const useUpvoteFlare = () => {
 		},
 	});
 };
+
+// Delete a flare (used for snackbar undo after submission)
+export const useDeleteFlare = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (id: string) => {
+			await FlareService.deleteFlare(id);
+		},
+		onMutate: async (id) => {
+			await queryClient.cancelQueries({ queryKey: ["flares"] });
+			const previous = queryClient.getQueryData<Flare[]>(["flares"]);
+			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
+				old?.filter((f) => f.id !== id),
+			);
+			return { previous };
+		},
+		onError: (_err, _id, context) => {
+			queryClient.setQueryData(["flares"], context?.previous);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["flares"] });
+		},
+	});
+};

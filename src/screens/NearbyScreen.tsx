@@ -1,5 +1,6 @@
-import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import type { RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useEffect, useRef, useState } from "react";
 import {
 	FlatList,
 	RefreshControl,
@@ -7,15 +8,19 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
-import { Button, FAB, Text } from "react-native-paper";
+import { Button, FAB, Snackbar, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { useEmergency } from "../context/EmergencyContext";
-import { useFlares } from "../hooks/useFlares";
+import { useDeleteFlare, useFlares } from "../hooks/useFlares";
 import { useLowStim } from "../hooks/useLowStim";
 import { usePreferences } from "../hooks/usePreferences";
-import type { NearbyFeedNavProp } from "../navigation/types";
+import type {
+	NearbyFeedNavProp,
+	NearbyStackParamList,
+} from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
 import type { CredibilityLevel, Flare } from "../types";
 
@@ -80,16 +85,56 @@ function sortFlares(flares: Flare[], mode: SortMode): Flare[] {
 	return [...sorted, ...resolved];
 }
 
+type NearbyFeedRoute = RouteProp<NearbyStackParamList, "NearbyFeed">;
+
+const SNACKBAR_DURATION_MS = 4000;
+
 export const NearbyScreen = () => {
 	const { data: flares = [], isLoading, refetch } = useFlares();
 	const { data: prefs } = usePreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
+	const route = useRoute<NearbyFeedRoute>();
 	const insets = useSafeAreaInsets();
 	const { activate } = useEmergency();
 	const lowStim = useLowStim();
+	const deleteFlare = useDeleteFlare();
 
 	const isOnline = prefs?.offlineCaching !== false;
+	const syncTimeStr = new Date().toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 	const [sortMode, setSortMode] = useState<SortMode>("priority");
+
+	// ── Snackbar undo state ─────────────────────────────────
+	const [snackVisible, setSnackVisible] = useState(false);
+	const [undoFlareId, setUndoFlareId] = useState<string | null>(null);
+	const processedParamRef = useRef<string | null>(null);
+
+	// React to justCreatedFlareId navigation param
+	useEffect(() => {
+		const createdId = route.params?.justCreatedFlareId;
+		if (createdId && createdId !== processedParamRef.current) {
+			processedParamRef.current = createdId;
+			setUndoFlareId(createdId);
+			setSnackVisible(true);
+			// Clear the param so it doesn't re-trigger on re-focus
+			navigation.setParams({ justCreatedFlareId: undefined });
+		}
+	}, [route.params?.justCreatedFlareId, navigation]);
+
+	const handleUndo = () => {
+		if (undoFlareId) {
+			deleteFlare.mutate(undoFlareId);
+		}
+		setSnackVisible(false);
+		setUndoFlareId(null);
+	};
+
+	const handleSnackDismiss = () => {
+		setSnackVisible(false);
+		setUndoFlareId(null);
+	};
 
 	// Filter: hide unconfirmed in low intensity
 	const feedFlares = sortFlares(
@@ -178,6 +223,11 @@ export const NearbyScreen = () => {
 				</View>
 			</View>
 
+			{/* Offline banner */}
+			{!isOnline && (
+				<OfflineBanner variant="offline" lastSyncTime={syncTimeStr} />
+			)}
+
 			{/* Feed */}
 			<FlatList
 				data={feedFlares}
@@ -199,6 +249,17 @@ export const NearbyScreen = () => {
 				onPress={() => navigation.navigate("ReportStep1")}
 				customSize={48}
 			/>
+
+			{/* ── Snackbar: flare created confirmation with Undo ── */}
+			<Snackbar
+				visible={snackVisible}
+				onDismiss={handleSnackDismiss}
+				duration={SNACKBAR_DURATION_MS}
+				action={{ label: "Undo", onPress: handleUndo }}
+				style={styles.snackbar}
+			>
+				Flare raised
+			</Snackbar>
 		</View>
 	);
 };
@@ -286,5 +347,10 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.burgundy,
 		borderRadius: components.cardRadius,
 	},
-});
 
+	// Snackbar
+	snackbar: {
+		backgroundColor: colors.surface,
+		marginBottom: 72, // Clear the FAB
+	},
+});
