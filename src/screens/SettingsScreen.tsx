@@ -3,6 +3,8 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ZonePromptModal } from "../components/ZonePromptModal";
+import { useEmergency } from "../context/EmergencyContext";
 import {
 	usePreferences,
 	useResetPreferences,
@@ -21,9 +23,11 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const updatePref = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
 	const navigation = useNavigation<SettingsMainNavProp>();
+	const { activate: activateEmergency } = useEmergency();
 
 	// Local state mirroring prefs
 	const [alertHigh, setAlertHigh] = useState(prefs?.alertIntensity === "high");
+	const [zonePromptVisible, setZonePromptVisible] = useState(false);
 	const [mobilityFriendly, setMobilityFriendly] = useState(
 		prefs?.mobilityFriendly ?? false,
 	);
@@ -119,6 +123,33 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 						color={colors.statusCaution}
 					/>
 				</View>
+
+				<Button
+					mode="outlined"
+					icon="map-marker-alert-outline"
+					onPress={() => setZonePromptVisible(true)}
+					textColor={colors.statusCaution}
+					style={[styles.supportButton, { borderColor: colors.statusCaution, marginTop: spacing.sm }]}
+					labelStyle={styles.supportLabel}
+					contentStyle={styles.supportContent}
+				>
+					Simulate zone alert
+				</Button>
+
+				<ZonePromptModal
+					visible={zonePromptVisible}
+					onDismiss={() => setZonePromptVisible(false)}
+					onRemindLater={() => setZonePromptVisible(false)}
+					onViewGuidance={() => {
+						setZonePromptVisible(false);
+						activateEmergency({
+							source: "zone",
+							category: "access_restriction",
+							location: "Hall Building, Tunnel Level",
+							building: "Hall Building",
+						});
+					}}
+				/>
 
 				<Divider style={styles.divider} />
 

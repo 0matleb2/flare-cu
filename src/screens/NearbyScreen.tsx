@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
 
 	// Snackbar
 	snackbar: {
-		backgroundColor: colors.surface,
+		backgroundColor: colors.textPrimary,
 		marginBottom: 72, // Clear the FAB
 	},
 });
