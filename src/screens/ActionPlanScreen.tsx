@@ -133,7 +133,14 @@ export const ActionPlanScreen = () => {
 
 	const step = planSteps[Math.min(currentStep, planSteps.length - 1)];
 	const zoneFlare = step.flareId
-		? (flares.find((candidate) => candidate.id === step.flareId) ?? null)
+		? (() => {
+				const flare = flares.find((candidate) => candidate.id === step.flareId);
+				return flare &&
+					(flare.credibility === "confirmed" ||
+						flare.credibility === "verified")
+					? flare
+					: null;
+			})()
 		: null;
 	const zoneRecommendation = zoneFlare
 		? getRecommendedAction(

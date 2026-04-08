@@ -25,6 +25,15 @@ const nodeMap: Record<string, CampusNode> = Object.fromEntries(
 	sgwNodes.map((node) => [node.id, node]),
 );
 
+function isZoneOfInterestFlare(
+	flare: ActiveFlare | null,
+): flare is ActiveFlare {
+	return (
+		!!flare &&
+		(flare.credibility === "confirmed" || flare.credibility === "verified")
+	);
+}
+
 function getNodeLabel(nodeId: string): string {
 	return nodeMap[nodeId]?.label ?? nodeId;
 }
@@ -47,7 +56,7 @@ function flareAffectsStep(
 }
 
 function buildStepWarning(flare: ActiveFlare | null): string | undefined {
-	if (!flare) return undefined;
+	if (!isZoneOfInterestFlare(flare)) return undefined;
 
 	const severity = flare.severity === "blocked" ? "high" : flare.severity;
 	const recommendation = getRecommendedAction(flare.category, severity);
@@ -61,6 +70,7 @@ export function formatRoute(
 ): FormattedRoute {
 	const steps: RouteStep[] = route.pathEdges.map((edge, index) => {
 		const flare = flareAffectsStep(edge.id, edge.from, edge.to, activeFlares);
+		const zoneFlare = isZoneOfInterestFlare(flare) ? flare : null;
 
 		return {
 			stepNumber: index + 1,
@@ -72,8 +82,8 @@ export function formatRoute(
 			distance: edge.distance,
 			indoor: edge.indoor,
 			accessible: edge.accessible,
-			warning: buildStepWarning(flare),
-			flareId: flare?.id,
+			warning: buildStepWarning(zoneFlare),
+			flareId: zoneFlare?.id,
 		};
 	});
 

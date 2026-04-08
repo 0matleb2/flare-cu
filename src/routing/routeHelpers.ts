@@ -64,6 +64,7 @@ export function mapFlaresToActiveFlares(flares: Flare[]): ActiveFlare[] {
 				category: f.category,
 				locationId,
 				severity,
+				credibility: f.credibility,
 				label: f.summary,
 				note: f.note,
 			};

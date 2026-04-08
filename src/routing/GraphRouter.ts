@@ -2,7 +2,7 @@ import {
 	getAffectedEdgeIdsForLocation,
 	getLocationOptionById,
 } from "../data/locations";
-import type { FlareCategory } from "../types";
+import type { CredibilityLevel, FlareCategory } from "../types";
 import {
 	type CampusEdge,
 	type CampusNode,
@@ -23,6 +23,7 @@ export interface ActiveFlare {
 	category: FlareCategory;
 	locationId: string;
 	severity: FlareSeverity;
+	credibility?: CredibilityLevel;
 	label?: string;
 	note?: string;
 	tags?: string[];
