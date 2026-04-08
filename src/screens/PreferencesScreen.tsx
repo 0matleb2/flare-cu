@@ -1,30 +1,62 @@
-import { useState } from "react";
+import type { RouteProp } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, SegmentedButtons, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, components, spacing, typography } from "../theme";
+import { usePreferences } from "../hooks/usePreferences";
+import type { AuthStackParamList } from "../navigation/types";
+import type { SessionAccessMode } from "../services/AppSessionService";
 import { PreferencesService } from "../services/PreferencesService";
+import {
+	colors,
+	components,
+	getAccentColors,
+	spacing,
+	typography,
+} from "../theme";
+import { type AlertIntensity, DEFAULT_PREFERENCES } from "../types";
 
 interface PreferencesScreenProps {
-	onComplete?: () => void;
+	onComplete?: (accessMode: SessionAccessMode) => void;
 }
 
 export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 	const insets = useSafeAreaInsets();
+	const { data: prefs } = usePreferences();
+	const route = useRoute<RouteProp<AuthStackParamList, "Preferences">>();
+	const accessMode = route.params?.accessMode ?? "guest";
 
-	const [mobilityFriendly, setMobilityFriendly] = useState(false);
-	const [lowStimulation, setLowStimulation] = useState(false);
-	const [alertsEnabled, setAlertsEnabled] = useState(false);
-	const [alertIntensity, setAlertIntensity] = useState<string>("low");
+	const [mobilityFriendly, setMobilityFriendly] = useState(
+		DEFAULT_PREFERENCES.mobilityFriendly,
+	);
+	const [lowStimulation, setLowStimulation] = useState(
+		DEFAULT_PREFERENCES.lowStimulation,
+	);
+	const [alertIntensity, setAlertIntensity] = useState<AlertIntensity>(
+		DEFAULT_PREFERENCES.alertIntensity,
+	);
+	const [didHydratePrefs, setDidHydratePrefs] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
+	const accent = getAccentColors(lowStimulation);
+
+	useEffect(() => {
+		if (!prefs || didHydratePrefs) return;
+		setMobilityFriendly(prefs.mobilityFriendly);
+		setLowStimulation(prefs.lowStimulation);
+		setAlertIntensity(prefs.alertIntensity);
+		setDidHydratePrefs(true);
+	}, [prefs, didHydratePrefs]);
 
 	const handleContinue = async () => {
-		// Persist preferences so they are available in the main app
+		setIsSaving(true);
 		await PreferencesService.savePreferences({
 			mobilityFriendly,
 			lowStimulation,
-			alertIntensity: alertsEnabled ? "high" : "low",
+			alertIntensity,
 		});
-		onComplete?.();
+		setIsSaving(false);
+		onComplete?.(accessMode);
 	};
 
 	return (
@@ -46,7 +78,7 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 					<Switch
 						value={mobilityFriendly}
 						onValueChange={setMobilityFriendly}
-						color={colors.burgundy}
+						color={accent.primary}
 					/>
 				</View>
 
@@ -61,36 +93,29 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 					<Switch
 						value={lowStimulation}
 						onValueChange={setLowStimulation}
-						color={colors.burgundy}
+						color={accent.primary}
 					/>
 				</View>
 
-				{/* Alerts intensity */}
+				{/* Alert intensity */}
 				<View style={styles.segmentSection}>
-					<View style={styles.row}>
-						<View style={styles.rowText}>
-							<Text style={styles.label}>Alerts intensity</Text>
-							<Text style={styles.hint}>
-								Turn on to get all relevant alerts
-							</Text>
-						</View>
-						<Switch
-							value={alertsEnabled}
-							onValueChange={setAlertsEnabled}
-							color={colors.burgundy}
-						/>
+					<View style={styles.rowText}>
+						<Text style={styles.label}>Alert intensity</Text>
+						<Text style={styles.hint}>
+							Low hides unconfirmed flares. High shows all reported activity.
+						</Text>
 					</View>
-					{alertsEnabled && (
-						<SegmentedButtons
-							value={alertIntensity}
-							onValueChange={setAlertIntensity}
-							buttons={[
-								{ value: "low", label: "Low" },
-								{ value: "high", label: "High" },
-							]}
-							style={styles.segmented}
-						/>
-					)}
+					<SegmentedButtons
+						value={alertIntensity}
+						onValueChange={(value) =>
+							setAlertIntensity(value as AlertIntensity)
+						}
+						buttons={[
+							{ value: "low", label: "Low" },
+							{ value: "high", label: "High" },
+						]}
+						style={styles.segmented}
+					/>
 				</View>
 			</View>
 
@@ -98,19 +123,22 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 				<Button
 					mode="contained"
 					onPress={handleContinue}
-					buttonColor={colors.burgundy}
+					buttonColor={accent.primary}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
 					style={styles.button}
+					loading={isSaving}
+					disabled={isSaving}
 				>
 					Continue
 				</Button>
 				<Button
 					mode="text"
-					onPress={handleContinue}
+					onPress={() => onComplete?.(accessMode)}
 					textColor={colors.textSecondary}
 					labelStyle={styles.skipLabel}
+					disabled={isSaving}
 				>
 					Skip for now
 				</Button>

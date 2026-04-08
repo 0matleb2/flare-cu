@@ -1,13 +1,25 @@
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { useState } from "react";
-import { Alert, Linking, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+	Alert,
+	Linking,
+	StyleSheet,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { Button, Modal, Portal, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
 import { useEmergency } from "../context/EmergencyContext";
-import { useCreateFlare } from "../hooks/useFlares";
+import { getLocationDetails } from "../data/locations";
+import { useAccentColors } from "../hooks/useAccentColors";
+import { useCreateFlare, useFlares } from "../hooks/useFlares";
+import { resolveBuildingId } from "../routing/routeHelpers";
+import { DEFAULT_CAMPUS_BUILDING } from "../services/CampusLocationService";
 import { colors, components, spacing, typography } from "../theme";
-import type { FlareCategory } from "../types";
+import type { Flare, FlareCategory } from "../types";
+import { CATEGORY_LABELS } from "../types";
+import { getFlareGraphDistance } from "../utils/flareDistance";
 import { EmergencySafeRouteTab } from "./emergency/EmergencySafeRouteTab";
 import { EmergencyStepsTab } from "./emergency/EmergencyStepsTab";
 import { EmergencyUpdatesTab } from "./emergency/EmergencyUpdatesTab";
@@ -20,23 +32,114 @@ const Tab = createMaterialTopTabNavigator();
 const QUICK_CATS: { value: FlareCategory; label: string }[] = [
 	{ value: "blocked_entrance", label: "Blocked entrance" },
 	{ value: "dense_crowd", label: "Dense crowd" },
-	{ value: "access_restriction", label: "Restriction" },
+	{ value: "access_restriction", label: "Access restriction" },
+	{ value: "construction", label: "Construction" },
 	{ value: "other", label: "Other" },
 ];
 
 export const EmergencyShell = () => {
 	const insets = useSafeAreaInsets();
-	const { trigger, deactivate } = useEmergency();
+	const {
+		trigger,
+		deactivate,
+		updateTrigger,
+		isExitPromptVisible,
+		requestExitPrompt,
+		dismissExitPrompt,
+	} = useEmergency();
 	const createFlare = useCreateFlare();
+	const { data: flares = [] } = useFlares();
+	const accent = useAccentColors();
 
 	// Quick report state
 	const [reportVisible, setReportVisible] = useState(false);
 	const [reportCat, setReportCat] = useState<FlareCategory>("other");
+	const [reportOtherText, setReportOtherText] = useState("");
 	const [reportNote, setReportNote] = useState("");
 	const [reportDone, setReportDone] = useState(false);
+	const [reportQueued, setReportQueued] = useState(false);
 
-	// Safe exit confirmation
-	const [showSafeConfirm, setShowSafeConfirm] = useState(false);
+	const currentBuilding = trigger?.building ?? DEFAULT_CAMPUS_BUILDING.name;
+	const currentBuildingId = resolveBuildingId(currentBuilding);
+	const activeFlares = useMemo(
+		() => flares.filter((flare) => flare.credibility !== "resolved"),
+		[flares],
+	);
+	const sameBuildingFlares = useMemo(
+		() =>
+			activeFlares
+				.filter((flare) => {
+					const flareBuildingCode = flare.locationId
+						? getLocationDetails(flare.locationId).buildingCode
+						: undefined;
+					return (
+						flareBuildingCode === currentBuildingId ||
+						resolveBuildingId(flare.building) === currentBuildingId
+					);
+				})
+				.sort((a, b) => b.lastUpdated - a.lastUpdated),
+		[activeFlares, currentBuildingId],
+	);
+	const rankedNearbyFlares = useMemo(
+		() =>
+			[...activeFlares]
+				.sort((a, b) => {
+					const distanceDiff =
+						getFlareGraphDistance(currentBuildingId, a) -
+						getFlareGraphDistance(currentBuildingId, b);
+					if (distanceDiff !== 0) {
+						return distanceDiff;
+					}
+					return b.lastUpdated - a.lastUpdated;
+				})
+				.slice(0, 4),
+		[activeFlares, currentBuildingId],
+	);
+	const shouldPromptForManualFlareSelection =
+		trigger?.source === "manual" &&
+		!trigger.flare &&
+		sameBuildingFlares.length > 1;
+
+	useEffect(() => {
+		if (!trigger || trigger.source !== "manual" || trigger.flare) {
+			return;
+		}
+
+		const matchedFlare =
+			sameBuildingFlares.length === 1
+				? sameBuildingFlares[0]
+				: sameBuildingFlares.length === 0
+					? rankedNearbyFlares[0]
+					: null;
+
+		if (!matchedFlare) {
+			return;
+		}
+
+		updateTrigger({
+			source: "manual",
+			flare: matchedFlare,
+			category: matchedFlare.category,
+			location: matchedFlare.location,
+			building: currentBuilding,
+		});
+	}, [
+		currentBuilding,
+		rankedNearbyFlares,
+		sameBuildingFlares,
+		trigger,
+		updateTrigger,
+	]);
+
+	const handleManualFlareSelection = (flare: Flare) => {
+		updateTrigger({
+			source: "manual",
+			flare,
+			category: flare.category,
+			location: flare.location,
+			building: currentBuilding,
+		});
+	};
 
 	const handleCallSecurity = () => {
 		const url = `tel:${CAMPUS_SECURITY}`;
@@ -67,16 +170,26 @@ export const EmergencyShell = () => {
 		createFlare.mutate(
 			{
 				category: reportCat,
+				locationId: trigger?.flare?.locationId,
 				building: trigger?.building ?? trigger?.flare?.building ?? "SGW Campus",
 				entrance: trigger?.flare?.entrance,
+				otherText:
+					reportCat === "other"
+						? reportOtherText.trim() || undefined
+						: undefined,
 				note: reportNote || undefined,
 			},
-			{ onSuccess: () => setReportDone(true) },
+			{
+				onSuccess: (newFlare) => {
+					setReportQueued(newFlare.syncStatus === "queued");
+					setReportDone(true);
+				},
+			},
 		);
 	};
 
 	const handleExit = () => {
-		setShowSafeConfirm(true);
+		requestExitPrompt();
 	};
 
 	return (
@@ -108,38 +221,76 @@ export const EmergencyShell = () => {
 				</View>
 			)}
 
-			{/* ═══ Emergency tab navigator ═══ */}
-			<Tab.Navigator
-				screenOptions={{
-					tabBarStyle: styles.tabBar,
-					tabBarLabelStyle: styles.tabLabel,
-					tabBarActiveTintColor: colors.burgundy,
-					tabBarInactiveTintColor: colors.textSecondary,
-					tabBarIndicatorStyle: styles.tabIndicator,
-				}}
-			>
-				<Tab.Screen name="Steps">
-					{() => (
-						<View style={styles.tabContent}>
-							<EmergencyStepsTab />
-						</View>
-					)}
-				</Tab.Screen>
-				<Tab.Screen name="Safe route">
-					{() => (
-						<View style={styles.tabContent}>
-							<EmergencySafeRouteTab />
-						</View>
-					)}
-				</Tab.Screen>
-				<Tab.Screen name="Updates">
-					{() => (
-						<View style={styles.tabContent}>
-							<EmergencyUpdatesTab />
-						</View>
-					)}
-				</Tab.Screen>
-			</Tab.Navigator>
+			{/* ═══ Emergency tab navigator / manual flare picker ═══ */}
+			{shouldPromptForManualFlareSelection ? (
+				<View style={styles.tabContent}>
+					<View style={styles.manualPickerCard}>
+						<Text style={styles.manualPickerEyebrow}>Current location</Text>
+						<Text style={styles.manualPickerTitle}>{currentBuilding}</Text>
+						<Text style={styles.manualPickerBody}>
+							We found multiple active flares close to you. Pick the one you
+							want guidance for.
+						</Text>
+
+						{sameBuildingFlares.slice(0, 4).map((flare) => (
+							<TouchableOpacity
+								key={flare.id}
+								style={styles.manualPickerOption}
+								activeOpacity={0.8}
+								onPress={() => handleManualFlareSelection(flare)}
+							>
+								<View style={styles.manualPickerOptionTop}>
+									<Text style={styles.manualPickerOptionCategory}>
+										{CATEGORY_LABELS[flare.category]}
+									</Text>
+									<CredibilityChip level={flare.credibility} />
+								</View>
+								<Text style={styles.manualPickerOptionSummary}>
+									{flare.summary}
+								</Text>
+								<Text style={styles.manualPickerOptionLocation}>
+									{flare.location}
+								</Text>
+							</TouchableOpacity>
+						))}
+					</View>
+				</View>
+			) : (
+				<Tab.Navigator
+					screenOptions={{
+						tabBarStyle: styles.tabBar,
+						tabBarLabelStyle: styles.tabLabel,
+						tabBarActiveTintColor: accent.primary,
+						tabBarInactiveTintColor: colors.textSecondary,
+						tabBarIndicatorStyle: [
+							styles.tabIndicator,
+							{ backgroundColor: accent.primary },
+						],
+					}}
+				>
+					<Tab.Screen name="Steps">
+						{() => (
+							<View style={styles.tabContent}>
+								<EmergencyStepsTab />
+							</View>
+						)}
+					</Tab.Screen>
+					<Tab.Screen name="Safe route">
+						{() => (
+							<View style={styles.tabContent}>
+								<EmergencySafeRouteTab />
+							</View>
+						)}
+					</Tab.Screen>
+					<Tab.Screen name="Updates">
+						{() => (
+							<View style={styles.tabContent}>
+								<EmergencyUpdatesTab />
+							</View>
+						)}
+					</Tab.Screen>
+				</Tab.Navigator>
+			)}
 
 			{/* ═══ Persistent bottom call bar ═══ */}
 			<View
@@ -148,50 +299,71 @@ export const EmergencyShell = () => {
 					{ paddingBottom: insets.bottom + spacing.sm },
 				]}
 			>
+				<Text style={styles.actionSectionTitle}>Emergency help</Text>
 				<View style={styles.callRow}>
+					<View style={styles.actionGroup}>
+						<Button
+							mode="outlined"
+							onPress={handleCallSecurity}
+							textColor={accent.primary}
+							icon="phone"
+							style={[
+								styles.callButton,
+								{ borderColor: accent.primaryOutline },
+							]}
+							labelStyle={styles.callLabel}
+							contentStyle={styles.callContent}
+						>
+							Campus security
+						</Button>
+					</View>
+					<View style={styles.actionGroup}>
+						<Button
+							mode="outlined"
+							onPress={handleCall911}
+							textColor={accent.primary}
+							icon="phone"
+							style={[
+								styles.callButton,
+								{ borderColor: accent.primaryOutline },
+							]}
+							labelStyle={styles.callLabel}
+							contentStyle={styles.callContent}
+						>
+							911
+						</Button>
+					</View>
+				</View>
+				<View style={styles.reportActionGroup}>
 					<Button
 						mode="outlined"
-						onPress={handleCallSecurity}
-						textColor="#1B5E20"
-						icon="phone"
-						style={[styles.callButton, styles.callSecurity]}
+						onPress={() => {
+							setReportDone(false);
+							setReportQueued(false);
+							setReportOtherText("");
+							setReportNote("");
+							setReportVisible(true);
+						}}
+						textColor={accent.primary}
+						icon="flag-outline"
+						style={[
+							styles.callButton,
+							styles.reportActionButton,
+							{ borderColor: accent.primaryOutline },
+						]}
 						labelStyle={styles.callLabel}
 						contentStyle={styles.callContent}
 					>
-						Campus security
-					</Button>
-					<Button
-						mode="outlined"
-						onPress={handleCall911}
-						textColor="#D32F2F"
-						icon="phone"
-						style={[styles.callButton, styles.call911]}
-						labelStyle={styles.callLabel}
-						contentStyle={styles.callContent}
-					>
-						911
+						Raise a flare
 					</Button>
 				</View>
-				<Button
-					mode="text"
-					onPress={() => {
-						setReportDone(false);
-						setReportNote("");
-						setReportVisible(true);
-					}}
-					textColor={colors.burgundy}
-					compact
-					labelStyle={styles.quickReportLabel}
-				>
-					Quick report
-				</Button>
 			</View>
 
 			{/* ═══ "I'm safe" confirmation modal ═══ */}
 			<Portal>
 				<Modal
-					visible={showSafeConfirm}
-					onDismiss={() => setShowSafeConfirm(false)}
+					visible={isExitPromptVisible}
+					onDismiss={dismissExitPrompt}
 					contentContainerStyle={styles.modalContainer}
 				>
 					<Text style={styles.modalTitle}>Are you safe?</Text>
@@ -201,10 +373,10 @@ export const EmergencyShell = () => {
 					<Button
 						mode="contained"
 						onPress={() => {
-							setShowSafeConfirm(false);
+							dismissExitPrompt();
 							deactivate();
 						}}
-						buttonColor={colors.statusSafe}
+						buttonColor={colors.burgundy}
 						textColor="#FFFFFF"
 						style={styles.modalButton}
 						labelStyle={styles.modalButtonLabel}
@@ -214,7 +386,7 @@ export const EmergencyShell = () => {
 					</Button>
 					<Button
 						mode="text"
-						onPress={() => setShowSafeConfirm(false)}
+						onPress={dismissExitPrompt}
 						textColor={colors.textSecondary}
 						labelStyle={styles.modalCancelLabel}
 					>
@@ -233,9 +405,13 @@ export const EmergencyShell = () => {
 					{reportDone ? (
 						<View style={styles.reportDone}>
 							<Text style={styles.reportDoneEmoji}>✓</Text>
-							<Text style={styles.reportDoneTitle}>Flare raised</Text>
+							<Text style={styles.reportDoneTitle}>
+								{reportQueued ? "Saved offline" : "Flare raised"}
+							</Text>
 							<Text style={styles.reportDoneBody}>
-								Thank you. Your report helps others stay safe.
+								{reportQueued
+									? "Your report was saved on this device and will sync automatically when you return to live mode."
+									: "Thank you. Your report helps others stay safe."}
 							</Text>
 							<Button
 								mode="contained"
@@ -256,7 +432,9 @@ export const EmergencyShell = () => {
 							<View style={styles.reportLocationCard}>
 								<Text style={styles.reportLocationLabel}>Location</Text>
 								<Text style={styles.reportLocationValue}>
-									{trigger?.flare?.location ?? "SGW Campus (auto-detected)"}
+									{trigger?.location ??
+										trigger?.flare?.location ??
+										"SGW Campus (auto-detected)"}
 								</Text>
 							</View>
 
@@ -282,6 +460,26 @@ export const EmergencyShell = () => {
 								))}
 							</View>
 
+							{reportCat === "other" && (
+								<TextInput
+									mode="outlined"
+									label="What's happening?"
+									value={reportOtherText}
+									onChangeText={(text) =>
+										setReportOtherText(text.slice(0, 140))
+									}
+									style={styles.noteInput}
+									outlineColor={colors.border}
+									activeOutlineColor={colors.burgundy}
+									multiline
+									numberOfLines={3}
+									placeholder="Describe what's affecting campus access..."
+									right={
+										<TextInput.Affix text={`${reportOtherText.length}/140`} />
+									}
+								/>
+							)}
+
 							<TextInput
 								mode="outlined"
 								label="Note (optional)"
@@ -301,12 +499,15 @@ export const EmergencyShell = () => {
 								buttonColor={colors.burgundy}
 								textColor="#FFFFFF"
 								loading={createFlare.isPending}
-								disabled={createFlare.isPending}
+								disabled={
+									createFlare.isPending ||
+									(reportCat === "other" && !reportOtherText.trim())
+								}
 								style={styles.modalButton}
 								labelStyle={styles.modalButtonLabel}
 								contentStyle={styles.modalButtonContent}
 							>
-								Submit flare
+								Raise flare
 							</Button>
 						</>
 					)}
@@ -378,13 +579,12 @@ const styles = StyleSheet.create({
 		borderBottomColor: colors.border,
 	},
 	tabLabel: {
-		fontSize: 13,
-		fontWeight: "600",
+		fontSize: 12,
+		fontWeight: "500",
 		textTransform: "none",
 	},
 	tabIndicator: {
-		backgroundColor: colors.burgundy,
-		height: 3,
+		height: 2,
 	},
 
 	// Tab content
@@ -393,6 +593,61 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.background,
 		padding: components.screenPaddingH,
 		paddingTop: spacing.md,
+	},
+	manualPickerCard: {
+		backgroundColor: colors.surface,
+		borderRadius: components.cardRadius,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
+		padding: components.cardPadding,
+		gap: spacing.md,
+	},
+	manualPickerEyebrow: {
+		fontSize: 11,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+	},
+	manualPickerTitle: {
+		fontSize: typography.h1.fontSize,
+		fontWeight: typography.h1.fontWeight,
+		color: colors.textPrimary,
+	},
+	manualPickerBody: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 22,
+	},
+	manualPickerOption: {
+		backgroundColor: colors.background,
+		borderRadius: components.cardRadius,
+		borderWidth: 1,
+		borderColor: colors.border,
+		padding: spacing.md,
+		gap: spacing.xs,
+	},
+	manualPickerOptionTop: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		gap: spacing.sm,
+	},
+	manualPickerOptionCategory: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: "700",
+		color: colors.burgundy,
+		textTransform: "uppercase",
+	},
+	manualPickerOptionSummary: {
+		fontSize: typography.body.fontSize,
+		fontWeight: "600",
+		color: colors.textPrimary,
+		lineHeight: 20,
+	},
+	manualPickerOptionLocation: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
 	},
 	tabScrollContent: {
 		flex: 1,
@@ -411,21 +666,26 @@ const styles = StyleSheet.create({
 		borderTopColor: colors.border,
 		paddingHorizontal: components.screenPaddingH,
 		paddingTop: spacing.sm,
-		gap: spacing.xs,
+		gap: spacing.sm,
+	},
+	actionSectionTitle: {
+		fontSize: 11,
+		fontWeight: "600",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 1,
 	},
 	callRow: {
 		flexDirection: "row",
 		gap: spacing.sm,
+		alignItems: "flex-start",
+	},
+	actionGroup: {
+		flex: 1,
+		gap: spacing.xs,
 	},
 	callButton: {
-		flex: 1,
 		borderRadius: components.cardRadius,
-	},
-	callSecurity: {
-		borderColor: "#1B5E20",
-	},
-	call911: {
-		borderColor: "#D32F2F",
 	},
 	callContent: {
 		minHeight: components.touchTarget,
@@ -434,8 +694,11 @@ const styles = StyleSheet.create({
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.button.fontWeight,
 	},
-	quickReportLabel: {
-		fontSize: typography.caption.fontSize,
+	reportActionGroup: {
+		gap: spacing.xs,
+	},
+	reportActionButton: {
+		width: "100%",
 	},
 
 	// Modals

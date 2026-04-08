@@ -1,6 +1,6 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	FlatList,
 	RefreshControl,
@@ -14,22 +14,40 @@ import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { useEmergency } from "../context/EmergencyContext";
-import { useDeleteFlare, useFlares } from "../hooks/useFlares";
+import { useAccentColors } from "../hooks/useAccentColors";
+import { useCampusLocation } from "../hooks/useCampusLocation";
+import {
+	useDeleteFlare,
+	useFlares,
+	useOfflineSyncStatus,
+} from "../hooks/useFlares";
 import { useLowStim } from "../hooks/useLowStim";
+import { useNetworkState } from "../hooks/useNetworkState";
 import { usePreferences } from "../hooks/usePreferences";
 import type {
 	NearbyFeedNavProp,
 	NearbyStackParamList,
 } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
+import { resolveBuildingId } from "../routing/routeHelpers";
+import { DEFAULT_CAMPUS_BUILDING } from "../services/CampusLocationService";
+import { colors, components, spacing, typography, withAlpha } from "../theme";
 import type { CredibilityLevel, Flare } from "../types";
+import { getFlareGraphDistance } from "../utils/flareDistance";
+import { formatLastSyncLabel } from "../utils/syncLabels";
+
+const TOUCH_TARGET_EXPANSION = {
+	top: 8,
+	right: 8,
+	bottom: 8,
+	left: 8,
+} as const;
 
 // ── Sort modes ──────────────────────────────────────────────
 type SortMode = "priority" | "nearest" | "recent";
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
 	{ value: "priority", label: "Priority" },
-	{ value: "nearest", label: "Nearest" },
+	{ value: "nearest", label: "Nearby" },
 	{ value: "recent", label: "Recent" },
 ];
 
@@ -40,21 +58,11 @@ const CREDIBILITY_PRIORITY: Record<CredibilityLevel, number> = {
 	resolved: 3,
 };
 
-// Simulated proximity scores (lower = closer). In a real app this
-// would be calculated from device GPS vs flare coordinates.
-const PROXIMITY_SCORE: Record<string, number> = {
-	"Hall Building": 1,
-	"EV Building": 2,
-	"LB Building": 3,
-	"GM Building": 4,
-	"MB Building": 5,
-	"CL Building": 6,
-	"FG Building": 7,
-	"Guy Street": 2,
-	"Webster Library": 3,
-};
-
-function sortFlares(flares: Flare[], mode: SortMode): Flare[] {
+function sortFlares(
+	flares: Flare[],
+	mode: SortMode,
+	distanceByFlareId: Record<string, number>,
+): Flare[] {
 	// Partition: resolved always last
 	const active = flares.filter((f) => f.credibility !== "resolved");
 	const resolved = flares.filter((f) => f.credibility === "resolved");
@@ -70,8 +78,8 @@ function sortFlares(flares: Flare[], mode: SortMode): Flare[] {
 				return b.lastUpdated - a.lastUpdated;
 			}
 			case "nearest": {
-				const aDist = PROXIMITY_SCORE[a.building] ?? 10;
-				const bDist = PROXIMITY_SCORE[b.building] ?? 10;
+				const aDist = distanceByFlareId[a.id] ?? Number.POSITIVE_INFINITY;
+				const bDist = distanceByFlareId[b.id] ?? Number.POSITIVE_INFINITY;
 				if (aDist !== bDist) return aDist - bDist;
 				return b.lastUpdated - a.lastUpdated;
 			}
@@ -90,26 +98,36 @@ type NearbyFeedRoute = RouteProp<NearbyStackParamList, "NearbyFeed">;
 const SNACKBAR_DURATION_MS = 4000;
 
 export const NearbyScreen = () => {
-	const { data: flares = [], isLoading, refetch } = useFlares();
+	const { data: flares = [], isLoading, isError, error, refetch } = useFlares();
 	const { data: prefs } = usePreferences();
 	const navigation = useNavigation<NearbyFeedNavProp>();
 	const route = useRoute<NearbyFeedRoute>();
 	const insets = useSafeAreaInsets();
 	const { activate } = useEmergency();
+	const accent = useAccentColors();
+	const { location } = useCampusLocation();
 	const lowStim = useLowStim();
 	const deleteFlare = useDeleteFlare();
+	const { data: syncStatus } = useOfflineSyncStatus();
+	const { isConnected } = useNetworkState();
 
-	const isOnline = prefs?.offlineCaching !== false;
-	const syncTimeStr = new Date().toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+	const isOnline = isConnected && prefs?.offlineCaching !== false;
+	const lastSyncTime = syncStatus?.lastSync
+		? formatLastSyncLabel(syncStatus.lastSync)
+		: undefined;
+	const queueCount = syncStatus?.queueCount ?? 0;
+	const [submissionMode, setSubmissionMode] = useState<"live" | "queued">(
+		"live",
+	);
 	const [sortMode, setSortMode] = useState<SortMode>("priority");
 
 	// ── Snackbar undo state ─────────────────────────────────
 	const [snackVisible, setSnackVisible] = useState(false);
 	const [undoFlareId, setUndoFlareId] = useState<string | null>(null);
 	const processedParamRef = useRef<string | null>(null);
+	const currentCampusOrigin =
+		location?.building.name ?? DEFAULT_CAMPUS_BUILDING.name;
+	const currentCampusOriginId = resolveBuildingId(currentCampusOrigin);
 
 	// React to justCreatedFlareId navigation param
 	useEffect(() => {
@@ -117,11 +135,18 @@ export const NearbyScreen = () => {
 		if (createdId && createdId !== processedParamRef.current) {
 			processedParamRef.current = createdId;
 			setUndoFlareId(createdId);
+			setSubmissionMode(route.params?.submissionMode ?? "live");
 			setSnackVisible(true);
-			// Clear the param so it doesn't re-trigger on re-focus
-			navigation.setParams({ justCreatedFlareId: undefined });
+			navigation.setParams({
+				justCreatedFlareId: undefined,
+				submissionMode: undefined,
+			});
 		}
-	}, [route.params?.justCreatedFlareId, navigation]);
+	}, [
+		route.params?.justCreatedFlareId,
+		route.params?.submissionMode,
+		navigation,
+	]);
 
 	const handleUndo = () => {
 		if (undoFlareId) {
@@ -136,15 +161,43 @@ export const NearbyScreen = () => {
 		setUndoFlareId(null);
 	};
 
-	// Filter: hide unconfirmed in low intensity
-	const feedFlares = sortFlares(
-		flares.filter((f) => {
-			if (prefs?.alertIntensity === "low" && f.credibility === "reported")
-				return false;
-			return true;
-		}),
-		sortMode,
+	const visibleFlares = useMemo(
+		() =>
+			flares.filter((f) => {
+				if (
+					prefs?.alertIntensity === "low" &&
+					(f.credibility === "reported" || f.credibility === "resolved")
+				) {
+					return false;
+				}
+				return true;
+			}),
+		[flares, prefs?.alertIntensity],
 	);
+	const distanceByFlareId = useMemo(
+		() =>
+			Object.fromEntries(
+				visibleFlares.map((flare) => [
+					flare.id,
+					getFlareGraphDistance(currentCampusOriginId, flare),
+				]),
+			),
+		[visibleFlares, currentCampusOriginId],
+	);
+	const feedFlares = useMemo(
+		() => sortFlares(visibleFlares, sortMode, distanceByFlareId),
+		[visibleFlares, sortMode, distanceByFlareId],
+	);
+	const hiddenByLowIntensity =
+		prefs?.alertIntensity === "low" &&
+		feedFlares.length === 0 &&
+		flares.some(
+			(f) => f.credibility === "reported" || f.credibility === "resolved",
+		);
+	const loadError =
+		error instanceof Error
+			? error.message
+			: "We couldn't load campus reports right now.";
 
 	const renderItem = ({ item }: { item: Flare }) => (
 		<FlareCard
@@ -176,9 +229,7 @@ export const NearbyScreen = () => {
 								style={[
 									styles.statusText,
 									{
-										color: isOnline
-											? colors.statusSafe
-											: colors.statusCaution,
+										color: isOnline ? colors.statusSafe : colors.statusCaution,
 									},
 								]}
 							>
@@ -192,7 +243,13 @@ export const NearbyScreen = () => {
 						compact
 						icon="alert-circle-outline"
 						labelStyle={styles.emergencyLabel}
-						onPress={() => activate({ source: "manual" })}
+						onPress={() =>
+							activate({
+								source: "manual",
+								building: currentCampusOrigin,
+								location: currentCampusOrigin,
+							})
+						}
 					>
 						Emergency
 					</Button>
@@ -205,14 +262,25 @@ export const NearbyScreen = () => {
 						return (
 							<TouchableOpacity
 								key={opt.value}
-								style={[styles.sortChip, isActive && styles.sortChipActive]}
+								style={[
+									styles.sortChip,
+									isActive && {
+										borderColor: accent.primaryOutline,
+										backgroundColor: withAlpha(accent.primary, "0F"),
+									},
+								]}
 								onPress={() => setSortMode(opt.value)}
 								activeOpacity={0.7}
+								hitSlop={TOUCH_TARGET_EXPANSION}
+								accessibilityRole="button"
+								accessibilityLabel={`Sort by ${opt.label}`}
+								accessibilityHint={`Shows campus reports sorted by ${opt.label.toLowerCase()}.`}
+								accessibilityState={{ selected: isActive }}
 							>
 								<Text
 									style={[
 										styles.sortChipText,
-										isActive && styles.sortChipTextActive,
+										isActive && { color: accent.primary },
 									]}
 								>
 									{opt.label}
@@ -225,7 +293,11 @@ export const NearbyScreen = () => {
 
 			{/* Offline banner */}
 			{!isOnline && (
-				<OfflineBanner variant="offline" lastSyncTime={syncTimeStr} />
+				<OfflineBanner
+					variant="offline"
+					lastSyncTime={lastSyncTime}
+					queueCount={queueCount}
+				/>
 			)}
 
 			{/* Feed */}
@@ -237,14 +309,42 @@ export const NearbyScreen = () => {
 				refreshControl={
 					<RefreshControl refreshing={isLoading} onRefresh={refetch} />
 				}
-				ListEmptyComponent={!isLoading ? <EmptyState /> : null}
+				ListEmptyComponent={
+					!isLoading ? (
+						isError ? (
+							<EmptyState
+								title="Couldn't load campus reports"
+								message={loadError}
+								hint="Pull to refresh or try again once your connection is stable."
+								actionLabel="Try again"
+								onAction={() => {
+									void refetch();
+								}}
+							/>
+						) : (
+							<EmptyState
+								title="No active campus reports"
+								message={
+									hiddenByLowIntensity
+										? "Low alert intensity is hiding reported-only flares."
+										: "There are no active flare reports for SGW right now."
+								}
+								hint={
+									hiddenByLowIntensity
+										? "Switch Alert intensity to High in Settings if you want to review unconfirmed reports too."
+										: "Pull down to refresh or raise a flare if you see something the community should know about."
+								}
+							/>
+						)
+					) : null
+				}
 			/>
 
 			{/* Report FAB */}
 			<FAB
 				icon="fire"
 				label="Raise a flare"
-				style={[styles.fab, { backgroundColor: colors.burgundy }]}
+				style={[styles.fab, { backgroundColor: accent.primary }]}
 				color="#FFFFFF"
 				onPress={() => navigation.navigate("ReportStep1")}
 				customSize={48}
@@ -256,9 +356,22 @@ export const NearbyScreen = () => {
 				onDismiss={handleSnackDismiss}
 				duration={SNACKBAR_DURATION_MS}
 				action={{ label: "Undo", onPress: handleUndo }}
+				theme={{
+					colors: {
+						inverseSurface: colors.surface,
+						inverseOnSurface: colors.textPrimary,
+						inversePrimary: accent.primary,
+					},
+				}}
 				style={styles.snackbar}
 			>
-				Flare raised
+				{submissionMode === "queued"
+					? lowStim
+						? "Flare saved offline"
+						: "Flare saved offline and queued for sync"
+					: lowStim
+						? "Flare raised"
+						: "Flare raised on the campus feed"}
 			</Snackbar>
 		</View>
 	);
@@ -323,17 +436,10 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 	},
-	sortChipActive: {
-		borderColor: colors.burgundy,
-		backgroundColor: `${colors.burgundy}0F`,
-	},
 	sortChipText: {
 		fontSize: typography.caption.fontSize,
 		fontWeight: "600",
 		color: colors.textSecondary,
-	},
-	sortChipTextActive: {
-		color: colors.burgundy,
 	},
 
 	list: {
@@ -344,13 +450,14 @@ const styles = StyleSheet.create({
 		position: "absolute",
 		right: components.screenPaddingH,
 		bottom: 16,
-		backgroundColor: colors.burgundy,
 		borderRadius: components.cardRadius,
 	},
 
 	// Snackbar
 	snackbar: {
-		backgroundColor: colors.textPrimary,
+		backgroundColor: colors.surface,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
 		marginBottom: 72, // Clear the FAB
 	},
 });

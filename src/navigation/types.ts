@@ -4,23 +4,35 @@ import type {
 	NavigatorScreenParams,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { SessionAccessMode } from "../services/AppSessionService";
+import type { FlareCategory, FlareSeverity } from "../types";
 
 // ── Auth Stack (first-launch / guest) ───────────────────────
 export type AuthStackParamList = {
 	Welcome: undefined;
 	Login: undefined;
 	CreateAccount: undefined;
-	Preferences: undefined;
+	Preferences: { accessMode?: SessionAccessMode } | undefined;
 	ForgotPassword: undefined;
 };
 
 // ── Nearby Stack (nested in tab) ────────────────────────────
 export type NearbyStackParamList = {
-	NearbyFeed: { justCreatedFlareId?: string } | undefined;
+	NearbyFeed:
+		| { justCreatedFlareId?: string; submissionMode?: "live" | "queued" }
+		| undefined;
 	FlareDetail: { flareId: string };
 	ReportStep1: undefined;
-	ReportStep2: { category: string };
-	ReportStep3: { category: string; building: string; entrance?: string };
+	ReportStep2: { category: FlareCategory; otherText?: string };
+	ReportStep3: {
+		category: FlareCategory;
+		otherText?: string;
+		locationId: string;
+		locationLabel: string;
+		building: string;
+		entrance?: string;
+		severity?: FlareSeverity;
+	};
 	ActionPlan: { planId: string };
 	Help: undefined;
 };
@@ -29,12 +41,20 @@ export type NearbyStackParamList = {
 export type RouteStackParamList = {
 	RouteSetup: undefined;
 	RouteResults: {
+		from: string;
 		to: string;
 		avoidHighTension: boolean;
 		mobilityFriendly: boolean;
-		lowStimulation: boolean;
+		zonePromptEnabled: boolean;
 	};
-	RouteActionPlan: { planId: string; building?: string; entrance?: string };
+	RouteActionPlan: {
+		planId: string;
+		building?: string;
+		entrance?: string;
+		fromBuilding?: string;
+		zonePromptEnabled?: boolean;
+		steps?: import("../types").RouteStep[];
+	};
 };
 
 // ── Settings Stack (nested in tab) ──────────────────────────

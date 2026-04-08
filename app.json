@@ -12,6 +12,14 @@
 			"resizeMode": "contain",
 			"backgroundColor": "#ffffff"
 		},
+		"plugins": [
+			[
+				"expo-location",
+				{
+					"locationWhenInUsePermission": "Allow Flare CU to detect your nearby Concordia campus building and prefill routes and reports."
+				}
+			]
+		],
 		"ios": {
 			"supportsTablet": true
 		},

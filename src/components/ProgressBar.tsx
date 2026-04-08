@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
+import { useAccentColors } from "../hooks/useAccentColors";
 import { colors, spacing } from "../theme";
 import type { CredibilityLevel } from "../types";
 import { CREDIBILITY_LABELS, CREDIBILITY_STEPS } from "../types";
@@ -14,6 +15,7 @@ export const ProgressBar = ({
 	currentLevel,
 	showLabels = false,
 }: ProgressBarProps) => {
+	const accent = useAccentColors();
 	const currentIndex = CREDIBILITY_STEPS.indexOf(currentLevel);
 
 	return (
@@ -33,7 +35,7 @@ export const ProgressBar = ({
 								style={[
 									styles.dot,
 									{
-										backgroundColor: isFilled ? colors.burgundy : colors.border,
+										backgroundColor: isFilled ? accent.primary : colors.border,
 									},
 								]}
 							/>
@@ -44,7 +46,7 @@ export const ProgressBar = ({
 										styles.line,
 										{
 											backgroundColor:
-												index < currentIndex ? colors.burgundy : colors.border,
+												index < currentIndex ? accent.primary : colors.border,
 										},
 									]}
 								/>

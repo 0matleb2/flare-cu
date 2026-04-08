@@ -1,17 +1,24 @@
 import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Divider, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ZonePromptModal } from "../components/ZonePromptModal";
-import { useEmergency } from "../context/EmergencyContext";
+import { useOfflineSyncStatus, useSyncQueuedReports } from "../hooks/useFlares";
+import { useNetworkState } from "../hooks/useNetworkState";
 import {
 	usePreferences,
 	useResetPreferences,
 	useUpdatePreferences,
 } from "../hooks/usePreferences";
 import type { SettingsMainNavProp } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
+import {
+	colors,
+	components,
+	getAccentColors,
+	spacing,
+	typography,
+} from "../theme";
+import { DEFAULT_PREFERENCES, type UserPreferences } from "../types";
+import { formatLastSyncLabel } from "../utils/syncLabels";
 
 export interface SettingsScreenProps {
 	onLogout?: () => void;
@@ -22,19 +29,21 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 	const { data: prefs } = usePreferences();
 	const updatePref = useUpdatePreferences();
 	const resetPrefs = useResetPreferences();
+	const syncQueued = useSyncQueuedReports();
+	const { data: syncStatus } = useOfflineSyncStatus();
 	const navigation = useNavigation<SettingsMainNavProp>();
-	const { activate: activateEmergency } = useEmergency();
+	const { isConnected } = useNetworkState();
+	const currentPrefs = prefs ?? DEFAULT_PREFERENCES;
+	const accent = getAccentColors(currentPrefs.lowStimulation);
+	const isOnline = isConnected && currentPrefs.offlineCaching !== false;
+	const queuedCount = syncStatus?.queueCount ?? 0;
+	const lastSyncLabel = syncStatus?.lastSync
+		? formatLastSyncLabel(syncStatus.lastSync)
+		: undefined;
+	const isSavingPreferences =
+		updatePref.isPending || resetPrefs.isPending || syncQueued.isPending;
 
-	// Local state mirroring prefs
-	const [alertHigh, setAlertHigh] = useState(prefs?.alertIntensity === "high");
-	const [zonePromptVisible, setZonePromptVisible] = useState(false);
-	const [mobilityFriendly, setMobilityFriendly] = useState(
-		prefs?.mobilityFriendly ?? false,
-	);
-	const [lowStim, setLowStim] = useState(prefs?.lowStimulation ?? false);
-	const [offlineMode, setOfflineMode] = useState(false);
-
-	const handleUpdate = (update: Record<string, unknown>) => {
+	const handleUpdate = (update: Partial<UserPreferences>) => {
 		updatePref.mutate(update);
 	};
 
@@ -51,18 +60,18 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Alert intensity</Text>
 						<Text style={styles.hint}>
-							{alertHigh
+							{currentPrefs.alertIntensity === "high"
 								? "High — shows all flares including unconfirmed"
 								: "Low — hides unconfirmed flares for less noise"}
 						</Text>
 					</View>
 					<Switch
-						value={alertHigh}
-						onValueChange={(v) => {
-							setAlertHigh(v);
-							handleUpdate({ alertIntensity: v ? "high" : "low" });
-						}}
-						color={colors.burgundy}
+						value={currentPrefs.alertIntensity === "high"}
+						onValueChange={(value) =>
+							handleUpdate({ alertIntensity: value ? "high" : "low" })
+						}
+						color={accent.primary}
+						disabled={isSavingPreferences}
 					/>
 				</View>
 
@@ -75,12 +84,10 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 						</Text>
 					</View>
 					<Switch
-						value={mobilityFriendly}
-						onValueChange={(v) => {
-							setMobilityFriendly(v);
-							handleUpdate({ mobilityFriendly: v });
-						}}
-						color={colors.burgundy}
+						value={currentPrefs.mobilityFriendly}
+						onValueChange={(value) => handleUpdate({ mobilityFriendly: value })}
+						color={accent.primary}
+						disabled={isSavingPreferences}
 					/>
 				</View>
 
@@ -89,67 +96,48 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Low stimulation</Text>
 						<Text style={styles.hint}>
-							Simplifies alerts, reduces animations and visual noise
+							Mutes alert colors, collapses extra detail, and reduces visual
+							noise
 						</Text>
 					</View>
 					<Switch
-						value={lowStim}
-						onValueChange={(v) => {
-							setLowStim(v);
-							handleUpdate({ lowStimulation: v });
-						}}
-						color={colors.burgundy}
+						value={currentPrefs.lowStimulation}
+						onValueChange={(value) => handleUpdate({ lowStimulation: value })}
+						color={accent.primary}
+						disabled={isSavingPreferences}
 					/>
 				</View>
 
 				<Divider style={styles.divider} />
 
-				{/* ══════════ Simulation ══════════ */}
-				<Text style={styles.groupTitle}>Developer</Text>
+				{/* ══════════ Connectivity ══════════ */}
+				<Text style={styles.groupTitle}>Connectivity</Text>
 
 				<View style={styles.row}>
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Offline mode</Text>
 						<Text style={styles.hint}>
-							Simulates offline mode. Feed shows cached data.
+							{!isOnline
+								? queuedCount > 0
+									? `Offline. ${queuedCount} queued.`
+									: "Offline."
+								: lastSyncLabel
+									? `Live. Last sync: ${lastSyncLabel}.`
+									: "Live."}
 						</Text>
 					</View>
 					<Switch
-						value={offlineMode}
-						onValueChange={(v) => {
-							setOfflineMode(v);
-							handleUpdate({ offlineCaching: !v });
+						value={!currentPrefs.offlineCaching}
+						onValueChange={(value) => {
+							handleUpdate({ offlineCaching: !value });
+							if (!value) {
+								syncQueued.mutate();
+							}
 						}}
 						color={colors.statusCaution}
+						disabled={isSavingPreferences}
 					/>
 				</View>
-
-				<Button
-					mode="outlined"
-					icon="map-marker-alert-outline"
-					onPress={() => setZonePromptVisible(true)}
-					textColor={colors.statusCaution}
-					style={[styles.supportButton, { borderColor: colors.statusCaution, marginTop: spacing.sm }]}
-					labelStyle={styles.supportLabel}
-					contentStyle={styles.supportContent}
-				>
-					Simulate zone alert
-				</Button>
-
-				<ZonePromptModal
-					visible={zonePromptVisible}
-					onDismiss={() => setZonePromptVisible(false)}
-					onRemindLater={() => setZonePromptVisible(false)}
-					onViewGuidance={() => {
-						setZonePromptVisible(false);
-						activateEmergency({
-							source: "zone",
-							category: "access_restriction",
-							location: "Hall Building, Tunnel Level",
-							building: "Hall Building",
-						});
-					}}
-				/>
 
 				<Divider style={styles.divider} />
 
@@ -176,6 +164,8 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 					style={styles.supportButton}
 					labelStyle={styles.supportLabel}
 					contentStyle={styles.supportContent}
+					disabled={isSavingPreferences}
+					loading={resetPrefs.isPending}
 				>
 					Reset to defaults
 				</Button>
@@ -188,7 +178,7 @@ export const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 						<Button
 							mode="contained"
 							onPress={onLogout}
-							buttonColor={colors.burgundy}
+							buttonColor={accent.primary}
 							textColor="#FFFFFF"
 							style={styles.logoutButton}
 							labelStyle={styles.logoutLabel}

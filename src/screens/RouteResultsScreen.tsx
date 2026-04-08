@@ -3,12 +3,25 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFlares } from "../hooks/useFlares";
+import { usePreferences } from "../hooks/usePreferences";
 import type {
 	RouteResultsNavProp,
 	RouteStackParamList,
 } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
-import type { RouteLabel } from "../types";
+import {
+	getRouteInstructions,
+	mapFlaresToActiveFlares,
+	resolveBuildingId,
+} from "../routing/routeHelpers";
+import {
+	colors,
+	components,
+	getAccentColors,
+	spacing,
+	typography,
+} from "../theme";
+import type { RouteLabel, RouteStep } from "../types";
 import { ROUTE_LABEL_DISPLAY } from "../types";
 
 type ResultsRoute = RouteProp<RouteStackParamList, "RouteResults">;
@@ -16,44 +29,99 @@ type ResultsRoute = RouteProp<RouteStackParamList, "RouteResults">;
 interface MockRoute {
 	id: string;
 	label: RouteLabel;
-	steps: { instruction: string; warning?: string }[];
+	steps: RouteStep[];
+	edgeIds: string[];
 }
 
-const ALL_ROUTES: MockRoute[] = [
-	{
-		id: "r1",
-		label: "safest",
+function normalizeEdgeId(edgeId: string) {
+	return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
+}
+
+function edgeSignature(edgeIds: string[]) {
+	return edgeIds.map(normalizeEdgeId).join("|");
+}
+
+function buildRouteVariant({
+	label,
+	startId,
+	endId,
+	activeFlares,
+	preferences,
+	discourageFrom = [],
+}: {
+	label: RouteLabel;
+	startId: string;
+	endId: string;
+	activeFlares: ReturnType<typeof mapFlaresToActiveFlares>;
+	preferences: Parameters<typeof getRouteInstructions>[0]["preferences"];
+	discourageFrom?: MockRoute[];
+}): MockRoute {
+	const baseRoute = getRouteInstructions({
+		startId,
+		endId,
+		activeFlares,
+		preferences,
+	});
+
+	const fallback: MockRoute = {
+		id: `r-${label}`,
+		label,
 		steps: [
-			{ instruction: "Exit through the rear of Hall Building." },
-			{ instruction: "Walk south on Mackay Street." },
-			{ instruction: "Turn left on de Maisonneuve Blvd." },
 			{
-				instruction: "Pass the EV Building on your right.",
-				warning: "Dense crowd reported near EV entrance.",
+				instruction: `Cannot calculate ${ROUTE_LABEL_DISPLAY[label].toLowerCase()} route.`,
 			},
-			{ instruction: "Arrive at your destination." },
 		],
-	},
-	{
-		id: "r2",
-		label: "accessible",
-		steps: [
-			{ instruction: "Use the elevator to ground floor in Hall Building." },
-			{ instruction: "Exit through the accessible ramp on Guy Street side." },
-			{ instruction: "Follow the sidewalk south on Guy Street." },
-			{ instruction: "Enter destination via the accessible entrance." },
-		],
-	},
-	{
-		id: "r3",
-		label: "fastest_safe",
-		steps: [
-			{ instruction: "Exit Hall Building through the main entrance." },
-			{ instruction: "Cross de Maisonneuve directly." },
-			{ instruction: "Enter destination from the north side." },
-		],
-	},
-];
+		edgeIds: [],
+	};
+
+	if (!baseRoute.ok || !baseRoute.route) {
+		return fallback;
+	}
+
+	const conflictingSignatures = new Set(
+		discourageFrom
+			.filter((route) => route.edgeIds.length > 0)
+			.map((route) => edgeSignature(route.edgeIds)),
+	);
+
+	const mapRoute = (
+		routeResponse: NonNullable<typeof baseRoute.route>,
+	): MockRoute => ({
+		id: `r-${label}`,
+		label,
+		steps: routeResponse.steps.map((s) => ({
+			instruction: s.text,
+			detail: s.indoor ? "Indoor path" : "Outdoor path",
+			distance: `${s.distance} units`,
+			warning: s.warning,
+			flareId: s.flareId,
+		})),
+		edgeIds: routeResponse.edgeIds,
+	});
+
+	const baseMockRoute = mapRoute(baseRoute.route);
+	if (!conflictingSignatures.has(edgeSignature(baseMockRoute.edgeIds))) {
+		return baseMockRoute;
+	}
+
+	const discouragedEdgeIds = discourageFrom.flatMap((route) => route.edgeIds);
+	const alternateRoute = getRouteInstructions({
+		startId,
+		endId,
+		activeFlares,
+		preferences,
+		discouragedEdgeIds,
+	});
+
+	if (!alternateRoute.ok || !alternateRoute.route) {
+		return baseMockRoute;
+	}
+
+	const alternateMockRoute = mapRoute(alternateRoute.route);
+	return conflictingSignatures.has(edgeSignature(alternateMockRoute.edgeIds))
+		? baseMockRoute
+		: alternateMockRoute;
+}
 
 function orderRoutes(
 	routes: MockRoute[],
@@ -80,10 +148,43 @@ export const RouteResultsScreen = () => {
 	const navigation = useNavigation<RouteResultsNavProp>();
 	const route = useRoute<ResultsRoute>();
 	const insets = useSafeAreaInsets();
+	const { data: flares = [] } = useFlares();
+	const { data: prefs } = usePreferences();
+	const accent = getAccentColors(prefs?.lowStimulation ?? false);
 
-	const orderedRoutes = orderRoutes(ALL_ROUTES, {
+	const activeFlares = mapFlaresToActiveFlares(flares);
+	const startId = resolveBuildingId(route.params.from || "guy_concordia_metro");
+	const endId = resolveBuildingId(route.params.to || "H");
+
+	const fastestRoute = buildRouteVariant({
+		label: "fastest_safe",
+		startId,
+		endId,
+		activeFlares,
+		preferences: ["shortest"],
+	});
+	const accessibleRoute = buildRouteVariant({
+		label: "accessible",
+		startId,
+		endId,
+		activeFlares,
+		preferences: ["accessibleOnly", "preferIndoor", "shortest"],
+		discourageFrom: [fastestRoute],
+	});
+	const safestRoute = buildRouteVariant({
+		label: "safest",
+		startId,
+		endId,
+		activeFlares,
+		preferences: ["avoidCrowds", "preferIndoor", "shortest"],
+		discourageFrom: [fastestRoute, accessibleRoute],
+	});
+
+	const dynamicRoutes = [fastestRoute, safestRoute, accessibleRoute];
+
+	const orderedRoutes = orderRoutes(dynamicRoutes, {
 		mobilityFriendly: route.params.mobilityFriendly,
-		lowStimulation: route.params.lowStimulation,
+		lowStimulation: prefs?.lowStimulation || false,
 	});
 
 	return (
@@ -108,7 +209,7 @@ export const RouteResultsScreen = () => {
 				{orderedRoutes.map((r, routeIndex) => (
 					<View key={r.id} style={styles.card}>
 						<View style={styles.labelRow}>
-							<Text style={styles.routeLabel}>
+							<Text style={[styles.routeLabel, { color: accent.primary }]}>
 								{ROUTE_LABEL_DISPLAY[r.label]}
 							</Text>
 							{routeIndex === 0 && (
@@ -121,16 +222,13 @@ export const RouteResultsScreen = () => {
 								<Text style={styles.stepNumber}>{i + 1}.</Text>
 								<View style={styles.stepContent}>
 									<Text style={styles.stepInstruction}>{step.instruction}</Text>
-									{step.warning && (
-										<Text style={styles.stepWarning}>⚠ {step.warning}</Text>
-									)}
 								</View>
 							</View>
 						))}
 
 						<Button
 							mode="contained"
-							buttonColor={colors.burgundy}
+							buttonColor={accent.primary}
 							textColor="#FFFFFF"
 							labelStyle={styles.buttonLabel}
 							contentStyle={styles.buttonContent}
@@ -139,6 +237,9 @@ export const RouteResultsScreen = () => {
 								navigation.navigate("RouteActionPlan", {
 									planId: r.id,
 									building: route.params.to,
+									fromBuilding: route.params.from,
+									zonePromptEnabled: route.params.zonePromptEnabled,
+									steps: r.steps,
 								})
 							}
 						>
@@ -194,7 +295,6 @@ const styles = StyleSheet.create({
 	routeLabel: {
 		fontSize: typography.h2.fontSize,
 		fontWeight: typography.h2.fontWeight,
-		color: colors.burgundy,
 	},
 	bestMatch: {
 		fontSize: typography.caption.fontSize,

@@ -1,11 +1,26 @@
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+	KeyboardAvoidingView,
+	Platform,
+	ScrollView,
+	StyleSheet,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAccentColors } from "../hooks/useAccentColors";
 import type { ReportStep1NavProp } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
+import { colors, components, spacing, typography, withAlpha } from "../theme";
 import type { FlareCategory } from "../types";
+
+const TOUCH_TARGET_EXPANSION = {
+	top: 8,
+	right: 8,
+	bottom: 8,
+	left: 8,
+} as const;
 
 const CATEGORIES: {
 	value: FlareCategory;
@@ -48,13 +63,16 @@ const CATEGORIES: {
 export const ReportStep1Screen = () => {
 	const navigation = useNavigation<ReportStep1NavProp>();
 	const insets = useSafeAreaInsets();
+	const accent = useAccentColors();
 	const [selected, setSelected] = useState<FlareCategory | null>(null);
 	const [otherText, setOtherText] = useState("");
 
 	return (
-		<View style={[styles.container, { paddingTop: insets.top }]}>
-			{/* Header */}
-			<View style={styles.header}>
+		<KeyboardAvoidingView
+			style={styles.container}
+			behavior={Platform.OS === "ios" ? "padding" : undefined}
+		>
+			<View style={[styles.header, { paddingTop: insets.top }]}>
 				<Button
 					icon="arrow-left"
 					onPress={() => navigation.goBack()}
@@ -65,27 +83,48 @@ export const ReportStep1Screen = () => {
 				</Button>
 			</View>
 
-			<ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-				{/* Progress bar */}
+			<ScrollView
+				style={styles.content}
+				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode="on-drag"
+				contentContainerStyle={[
+					styles.contentInner,
+					{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.lg },
+				]}
+			>
 				<View style={styles.progressRow}>
-					<View style={[styles.progressSegment, styles.progressCurrent]} />
+					<View
+						style={[
+							styles.progressSegment,
+							{ backgroundColor: withAlpha(accent.primary, "40") },
+						]}
+					/>
 					<View style={styles.progressSegment} />
 					<View style={styles.progressSegment} />
 				</View>
 
 				<Text style={styles.title}>Raise a flare</Text>
-				<Text style={styles.step}>Step 1 of 3 — Category</Text>
 
-				{/* Category radio cards */}
 				<View style={styles.tiles}>
 					{CATEGORIES.map((cat) => {
 						const isSelected = selected === cat.value;
 						return (
 							<TouchableOpacity
 								key={cat.value}
-								style={[styles.tile, isSelected && styles.tileSelected]}
+								style={[
+									styles.tile,
+									isSelected && {
+										borderColor: accent.primaryOutline,
+										backgroundColor: withAlpha(accent.primary, "08"),
+									},
+								]}
 								activeOpacity={0.7}
 								onPress={() => setSelected(cat.value)}
+								hitSlop={TOUCH_TARGET_EXPANSION}
+								accessibilityRole="radio"
+								accessibilityLabel={cat.label}
+								accessibilityHint={cat.description}
+								accessibilityState={{ selected: isSelected }}
 							>
 								<View style={styles.tileRow}>
 									<Text style={styles.tileIcon}>{cat.icon}</Text>
@@ -93,7 +132,7 @@ export const ReportStep1Screen = () => {
 										<Text
 											style={[
 												styles.tileLabel,
-												isSelected && styles.tileLabelSelected,
+												isSelected && { color: accent.primary },
 											]}
 										>
 											{cat.label}
@@ -103,9 +142,19 @@ export const ReportStep1Screen = () => {
 										</Text>
 									</View>
 									<View
-										style={[styles.radio, isSelected && styles.radioSelected]}
+										style={[
+											styles.radio,
+											isSelected && { borderColor: accent.primaryOutline },
+										]}
 									>
-										{isSelected && <View style={styles.radioInner} />}
+										{isSelected && (
+											<View
+												style={[
+													styles.radioInner,
+													{ backgroundColor: accent.primary },
+												]}
+											/>
+										)}
 									</View>
 								</View>
 							</TouchableOpacity>
@@ -113,7 +162,6 @@ export const ReportStep1Screen = () => {
 					})}
 				</View>
 
-				{/* "Other" text input */}
 				{selected === "other" && (
 					<TextInput
 						mode="outlined"
@@ -124,13 +172,12 @@ export const ReportStep1Screen = () => {
 						numberOfLines={3}
 						style={styles.otherInput}
 						outlineColor={colors.border}
-						activeOutlineColor={colors.burgundy}
+						activeOutlineColor={accent.primary}
 						placeholder="Describe what's affecting campus access..."
 					/>
 				)}
 			</ScrollView>
 
-			{/* Next button at bottom */}
 			<View
 				style={[
 					styles.bottomBar,
@@ -142,26 +189,24 @@ export const ReportStep1Screen = () => {
 					onPress={() =>
 						selected &&
 						navigation.navigate("ReportStep2", {
-							category:
-								selected === "other" && otherText.trim()
-									? `other: ${otherText.trim()}`
-									: selected,
+							category: selected,
+							otherText:
+								selected === "other"
+									? otherText.trim() || undefined
+									: undefined,
 						})
 					}
-					buttonColor={colors.burgundy}
+					buttonColor={accent.primary}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
 					style={styles.button}
-					disabled={
-						!selected ||
-						(selected === "other" && !otherText.trim())
-					}
+					disabled={!selected || (selected === "other" && !otherText.trim())}
 				>
 					Next
 				</Button>
 			</View>
-		</View>
+		</KeyboardAvoidingView>
 	);
 };
 
@@ -177,19 +222,15 @@ const styles = StyleSheet.create({
 	},
 	content: {
 		flex: 1,
+	},
+	contentInner: {
 		paddingHorizontal: components.screenPaddingH,
 		gap: spacing.sm,
-		paddingBottom: spacing.lg,
 	},
 	title: {
 		fontSize: typography.h1.fontSize,
 		fontWeight: typography.h1.fontWeight,
 		color: colors.textPrimary,
-	},
-	step: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-		marginBottom: spacing.md,
 	},
 	progressRow: {
 		flexDirection: "row",
