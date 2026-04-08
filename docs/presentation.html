@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flare CU — Final Presentation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+<style>
+  :root {
+    --burgundy: #7A003C;
+    --burgundy-dark: #5B002D;
+    --burgundy-light: #F3E6EC;
+    --bg: #F8F9FB;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --safe: #2E7D32;
+    --caution: #B26A00;
+    --info: #1E5AA8;
+    --high-tension: #8B1E1E;
+  }
+
+  .reveal {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-primary);
+  }
+
+  .reveal .slides { text-align: left; }
+
+  .reveal h1, .reveal h2, .reveal h3 {
+    color: var(--burgundy);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: -0.01em;
+  }
+
+  .reveal h1 { font-size: 2.2em; }
+  .reveal h2 { font-size: 1.4em; margin-bottom: 0.4em; }
+  .reveal h3 { font-size: 1.0em; margin-bottom: 0.3em; }
+
+  .reveal p, .reveal li {
+    font-size: 0.65em;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+
+  .reveal ul { margin-left: 0; padding-left: 1.2em; }
+  .reveal li { margin-bottom: 0.3em; }
+
+  /* Title slide */
+  .title-slide { text-align: center !important; }
+  .title-slide h1 { font-size: 3em; margin-bottom: 0.1em; }
+  .title-slide .tagline {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-bottom: 1.5em;
+  }
+  .title-slide .course {
+    font-size: 0.55em;
+    color: var(--text-secondary);
+    margin-bottom: 0.3em;
+  }
+  .title-slide .names {
+    font-size: 0.5em;
+    color: var(--text-secondary);
+  }
+  .title-slide .accent-bar {
+    width: 80px;
+    height: 4px;
+    background: var(--burgundy);
+    margin: 0 auto 1.5em;
+    border-radius: 2px;
+  }
+
+  /* Image grids */
+  .img-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 0.5em;
+    flex-wrap: wrap;
+  }
+  .img-row img {
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    object-fit: contain;
+    background: #fff;
+  }
+  .img-row.personas img { height: 250px; }
+  .img-row.wireframes img { height: 280px; }
+  .img-row.comparison img { height: 275px; }
+  .img-row.screens img { height: 300px; }
+
+  /* Comparison labels */
+  .compare-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .compare-pair span {
+    font-size: 0.55em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* User group cards */
+  .user-groups {
+    display: flex;
+    gap: 20px;
+    margin-top: 0.5em;
+  }
+  .user-card {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .user-card h3 {
+    font-size: 0.65em;
+    margin-bottom: 0.3em;
+    margin-top: 0;
+  }
+  .user-card p {
+    font-size: 0.55em;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* Double diamond */
+  .diamond-phases {
+    display: flex;
+    gap: 12px;
+    margin-top: 0.5em;
+  }
+  .phase {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 4px solid var(--burgundy);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .phase h3 {
+    font-size: 0.6em;
+    margin: 0 0 0.3em 0;
+  }
+  .phase p {
+    font-size: 0.5em;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* Arrow between compare pairs */
+  .arrow {
+    display: flex;
+    align-items: center;
+    font-size: 1.5em;
+    color: var(--burgundy);
+    padding-top: 20px;
+  }
+
+  /* Heuristic table */
+  .reveal table {
+    font-size: 0.5em;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.4em;
+  }
+  .reveal th {
+    background: var(--burgundy);
+    color: white;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+  }
+  .reveal td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .reveal tr:nth-child(even) td { background: var(--burgundy-light); }
+
+  .reveal .slide-number {
+    color: var(--burgundy);
+    font-size: 14px;
+  }
+
+  /* Subtle bottom accent line on every slide */
+  .reveal .slides section::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    height: 3px;
+    background: var(--burgundy-light);
+    border-radius: 2px;
+  }
+
+  /* Problem slide highlight */
+  .highlight {
+    background: var(--burgundy-light);
+    border-left: 4px solid var(--burgundy);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 0.5em;
+  }
+  .highlight p {
+    margin: 0;
+    font-size: 0.65em;
+    color: var(--burgundy-dark);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============================== SLIDE 1 — TITLE ============================== -->
+<section class="title-slide">
+  <h1>Flare CU</h1>
+  <div class="accent-bar"></div>
+  <p class="tagline">Campus Safety &amp; Navigation for Concordia SGW</p>
+  <p class="course">SOEN 6751 &mdash; Human Computer Interface Design &mdash; Winter 2026</p>
+  <p class="names">Tahina Andriantomanga &middot; Harshavardhan Anbuchezhian Gowri &middot; Akhilesh Ranjit Kanbarkar &middot; Mathieu Leblanc &middot; Joshua Onyema</p>
+</section>
+
+<!-- ============================== SLIDE 2 — PROBLEM ============================== -->
+<section>
+  <h2>The Problem</h2>
+  <p><strong>Concordia SGW is an open urban campus. Conditions change fast.</strong></p>
+  <ul>
+    <li>Protests, blockades, dense crowds, construction, entrance closures</li>
+    <li>Google Maps optimizes for speed &mdash; not safety, accessibility, or calm</li>
+    <li>Official alerts (email, Rave Guardian) inform but don't guide navigation</li>
+    <li>Students must interpret fragmented info under stress and time pressure</li>
+  </ul>
+  <div class="highlight">
+    <p>Flare CU gives students one calm place to see what's happening nearby, judge how credible it is, and decide what to do next.</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 3 — USERS ============================== -->
+<section>
+  <h2>Our Users</h2>
+  <div class="user-groups">
+    <div class="user-card">
+      <h3>Mobility-constrained</h3>
+      <p>Need barrier-free routes, ramps, elevators. Detours during disruptions may be inaccessible.</p>
+    </div>
+    <div class="user-card">
+      <h3>Anxiety / sensory-sensitive</h3>
+      <p>Benefit from reduced cognitive load. Need calm language, minimal stimulation.</p>
+    </div>
+    <div class="user-card">
+      <h3>New to campus</h3>
+      <p>Unfamiliar with layouts and alternate routes. Need clear, contextual guidance.</p>
+    </div>
+  </div>
+  <div class="img-row personas" style="margin-top: 16px; flex-wrap: nowrap;">
+    <img src="../diagrams/User Personas/user persona 1.png" alt="Persona 1">
+    <img src="../diagrams/User Personas/user persona 2.png" alt="Persona 2">
+    <img src="../diagrams/User Personas/user persona 3.png" alt="Persona 3">
+  </div>
+</section>
+
+<!-- ============================== SLIDE 4 — DOUBLE DIAMOND ============================== -->
+<section>
+  <h2>Double Diamond Design Process</h2>
+  <div class="diamond-phases">
+    <div class="phase">
+      <h3>Discover</h3>
+      <p>Reviewed Concordia safety pages, campus maps, accessibility resources, public disruption reports</p>
+    </div>
+    <div class="phase">
+      <h3>Define</h3>
+      <p>Built personas, empathy maps, journey maps; specified 10 user goals from real constraints</p>
+    </div>
+    <div class="phase">
+      <h3>Develop</h3>
+      <p>Low-fi wireframes for layout and flow, then iterated into high-fi prototype</p>
+    </div>
+    <div class="phase">
+      <h3>Deliver</h3>
+      <p>Functional prototype on real device, evaluated against 10 usability heuristics</p>
+    </div>
+  </div>
+  <div class="img-row" style="margin-top: 16px; gap: 12px; flex-wrap: nowrap;">
+    <img src="../diagrams/Empathy Maps/Empathy map.png" alt="Empathy Map 1" style="height:250px;">
+    <img src="../diagrams/Empathy Maps/Empathy map-2.png" alt="Empathy Map 2" style="height:250px;">
+    <img src="../diagrams/Journey Maps/User Journey Map-1.png" alt="Journey Map" style="height:250px;">
+    <img src="../diagrams/Stakeholder Map/Stakeholder-Map.png" alt="Stakeholder Map" style="height:250px;">
+  </div>
+</section>
+
+<!-- ============================== SLIDE 5 — LOW-FI WIREFRAMES ============================== -->
+<section>
+  <h2>Low-Fidelity Wireframes</h2>
+  <p>Grayscale wireframes established screen hierarchy, navigation structure, and information layout before visual design.</p>
+  <div class="img-row wireframes" style="gap: 6px; margin-top: 0.3em;">
+    <img src="../diagrams/System Prototypes/Landing and Login/IMG_0001.jpg" alt="Low-fi: Landing">
+    <img src="../diagrams/System Prototypes/Main feed and Flair description/IMG_0003.jpg" alt="Low-fi: Feed">
+    <img src="../diagrams/System Prototypes/Emergency module/HCI_1.jpeg" alt="Low-fi: Emergency">
+    <img src="../diagrams/System Prototypes/Raise a flare [category, location, submit]/1.jpeg" alt="Low-fi: Report">
+    <img src="../diagrams/System Prototypes/Routes/Route screen (setup).jpg" alt="Low-fi: Routes">
+  </div>
+</section>
+
+<!-- ============================== SLIDE 6 — LOW-FI → HIGH-FI ============================== -->
+<section>
+  <h2>Low-Fi &rarr; High-Fi Evolution</h2>
+  <p>Core structure stayed the same. High-fi added Concordia color system, real interaction states, and accessibility adaptations.</p>
+  <div class="img-row comparison" style="flex-wrap: nowrap;">
+    <div class="compare-pair">
+      <span>Low-fi</span>
+      <img src="../diagrams/System Prototypes/Landing and Login/IMG_0001.jpg" alt="Low-fi Landing">
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="compare-pair">
+      <span>High-fi</span>
+      <img src="../diagrams/System Prototypes/Landing and Login/hifi-landing-screen.png" alt="High-fi Landing">
+    </div>
+    <div style="width: 32px;"></div>
+    <div class="compare-pair">
+      <span>Low-fi</span>
+      <img src="../diagrams/System Prototypes/Main feed and Flair description/IMG_0003.jpg" alt="Low-fi Feed">
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="compare-pair">
+      <span>High-fi</span>
+      <img src="../diagrams/System Prototypes/Main feed and Flair description/hifi-nearby-feed-screen.png" alt="High-fi Feed">
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 7 — HEURISTICS ============================== -->
+<section>
+  <h2>10 Usability Heuristics</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Heuristic</th><th>How Flare CU applies it</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Visibility of system status</td><td>Online/offline badge, credibility labels, progress bars</td></tr>
+      <tr><td>2</td><td>Match between system and real world</td><td>"Flare" not "alert," calm familiar language</td></tr>
+      <tr><td>3</td><td>User control and freedom</td><td>Undo after report, exit emergency anytime, "Are you safe?"</td></tr>
+      <tr><td>4</td><td>Consistency and standards</td><td>Material Design 3, consistent card layout and credibility colors</td></tr>
+      <tr><td>5</td><td>Error prevention</td><td>Structured categories prevent vague reports, confirm before emergency exit</td></tr>
+      <tr><td>6</td><td>Recognition rather than recall</td><td>Sort chips, category chips, location chips, route option cards</td></tr>
+      <tr><td>7</td><td>Flexibility and efficiency of use</td><td>Guest mode shortcut, sort options, alert intensity levels</td></tr>
+      <tr><td>8</td><td>Aesthetic and minimalist design</td><td>Calm Tech, emergency strips to 3 tabs, low-stim mode</td></tr>
+      <tr><td>9</td><td>Help users recover from errors</td><td>Undo snackbar, offline queues reports and syncs later</td></tr>
+      <tr><td>10</td><td>Help and documentation</td><td>Quick Setup explains options, settings describe effects in plain language</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div><!-- /.slides -->
+</div><!-- /.reveal -->
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: true,
+    width: 1280,
+    height: 720,
+    margin: 0.08,
+    transition: 'slide',
+    transitionSpeed: 'fast',
+    controls: true,
+    progress: true,
+    center: false,
+  });
+</script>
+</body>
+</html>
