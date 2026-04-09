@@ -2,7 +2,7 @@ import type { RouteProp } from "@react-navigation/native";
 import { useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, SegmentedButtons, Switch, Text } from "react-native-paper";
+import { Button, Switch, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePreferences } from "../hooks/usePreferences";
 import type { AuthStackParamList } from "../navigation/types";
@@ -98,23 +98,17 @@ export const PreferencesScreen = ({ onComplete }: PreferencesScreenProps) => {
 				</View>
 
 				{/* Alert intensity */}
-				<View style={styles.segmentSection}>
+				<View style={styles.row}>
 					<View style={styles.rowText}>
 						<Text style={styles.label}>Alert intensity</Text>
 						<Text style={styles.hint}>
-							Low hides unconfirmed flares. High shows all reported activity.
+							Turn on to get all alerts. Turn off to reduce to important alerts.
 						</Text>
 					</View>
-					<SegmentedButtons
-						value={alertIntensity}
-						onValueChange={(value) =>
-							setAlertIntensity(value as AlertIntensity)
-						}
-						buttons={[
-							{ value: "low", label: "Low" },
-							{ value: "high", label: "High" },
-						]}
-						style={styles.segmented}
+					<Switch
+						value={alertIntensity === "high"}
+						onValueChange={(value) => setAlertIntensity(value ? "high" : "low")}
+						color={accent.primary}
 					/>
 				</View>
 			</View>
@@ -187,13 +181,6 @@ const styles = StyleSheet.create({
 	hint: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
-	},
-	segmentSection: {
-		gap: spacing.xs,
-	},
-	segmented: {
-		alignSelf: "flex-start",
-		marginTop: spacing.xs,
 	},
 	footer: {
 		paddingBottom: spacing.xl,

@@ -33,6 +33,7 @@
     "@biomejs/biome": "2.3.13",
     "@types/react": "~19.1.0",
     "babel-plugin-react-compiler": "19.1.0-rc.3",
+    "babel-preset-expo": "54.0.10",
     "typescript": "~5.9.3"
   },
   "private": true,
