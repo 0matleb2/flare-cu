@@ -2,13 +2,16 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
-import { Icon, PaperProvider } from "react-native-paper";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Icon, PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AppSessionProvider } from "./src/context/AppSessionContext";
 import {
 	EmergencyProvider,
 	useEmergency,
 } from "./src/context/EmergencyContext";
+import { useLowStim } from "./src/hooks/useLowStim";
 
 import type {
 	AuthStackParamList,
@@ -22,12 +25,12 @@ import type {
 import { ActionPlanScreen } from "./src/screens/ActionPlanScreen";
 // Screens – Auth
 import { CreateAccountScreen } from "./src/screens/CreateAccountScreen";
-import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
-import { LoginScreen } from "./src/screens/LoginScreen";
 // Emergency
 import { EmergencyShell } from "./src/screens/EmergencyShell";
 import { FlareDetailScreen } from "./src/screens/FlareDetailScreen";
+import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
 import { HelpScreen } from "./src/screens/HelpScreen";
+import { LoginScreen } from "./src/screens/LoginScreen";
 import { NearbyScreen } from "./src/screens/NearbyScreen";
 import { PreferencesScreen } from "./src/screens/PreferencesScreen";
 import { ReportStep1Screen } from "./src/screens/ReportStep1Screen";
@@ -43,7 +46,12 @@ import { SavedScreen } from "./src/screens/SavedScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 
-import { colors, theme } from "./src/theme";
+import {
+	AppSessionService,
+	DEFAULT_APP_SESSION,
+	type SessionAccessMode,
+} from "./src/services/AppSessionService";
+import { colors, getAccentColors, getPaperTheme } from "./src/theme";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -81,11 +89,14 @@ function RouteStackNavigator() {
 }
 
 function MainTabs({ onLogout }: { onLogout: () => void }) {
+	const lowStim = useLowStim();
+	const accent = useMemo(() => getAccentColors(lowStim), [lowStim]);
+
 	return (
 		<Tab.Navigator
 			screenOptions={{
 				headerShown: false,
-				tabBarActiveTintColor: colors.burgundy,
+				tabBarActiveTintColor: accent.primary,
 				tabBarInactiveTintColor: colors.textSecondary,
 				tabBarStyle: {
 					backgroundColor: colors.surface,
@@ -98,7 +109,7 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 				name="NearbyTab"
 				component={NearbyStackNavigator}
 				options={{
-					tabBarLabel: "Nearby",
+					tabBarLabel: "Campus",
 					tabBarIcon: ({ color, size }) => (
 						<Icon
 							source="map-marker-radius-outline"
@@ -159,14 +170,22 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 	);
 }
 
-function AuthFlow({ onComplete }: { onComplete: () => void }) {
+function AuthFlow({
+	onComplete,
+}: {
+	onComplete: (accessMode: SessionAccessMode) => void;
+}) {
 	return (
 		<AuthStack.Navigator screenOptions={{ headerShown: false }}>
 			<AuthStack.Screen name="Welcome">
-				{(props) => <WelcomeScreen {...props} onGuestAccess={onComplete} />}
+				{(props) => (
+					<WelcomeScreen {...props} onGuestAccess={() => onComplete("guest")} />
+				)}
 			</AuthStack.Screen>
 			<AuthStack.Screen name="Login">
-				{(props) => <LoginScreen {...props} onLogin={onComplete} />}
+				{(props) => (
+					<LoginScreen {...props} onLogin={() => onComplete("account")} />
+				)}
 			</AuthStack.Screen>
 			<AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
 			<AuthStack.Screen name="Preferences">
@@ -183,19 +202,77 @@ function AuthFlow({ onComplete }: { onComplete: () => void }) {
 // ── App content (reads EmergencyContext) ─────────────────────
 
 function AppContent() {
-	const [isOnboarded, setIsOnboarded] = useState(false);
+	const [session, setSession] = useState(DEFAULT_APP_SESSION);
+	const [isHydratingSession, setIsHydratingSession] = useState(true);
 	const { isActive: isEmergencyActive } = useEmergency();
+	const lowStim = useLowStim();
+	const accent = useMemo(() => getAccentColors(lowStim), [lowStim]);
 
-	if (!isOnboarded) {
-		return <AuthFlow onComplete={() => setIsOnboarded(true)} />;
-	}
+	useEffect(() => {
+		let isMounted = true;
 
-	// Emergency mode replaces the entire main app
-	if (isEmergencyActive) {
-		return <EmergencyShell />;
-	}
+		const hydrateSession = async () => {
+			const session = await AppSessionService.getSession();
+			if (!isMounted) {
+				return;
+			}
+			setSession(session);
+			setIsHydratingSession(false);
+		};
 
-	return <MainTabs onLogout={() => setIsOnboarded(false)} />;
+		void hydrateSession();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	const handleCompleteAuth = useCallback((accessMode: SessionAccessMode) => {
+		const nextSession = {
+			isOnboarded: true,
+			accessMode,
+		};
+		setSession(nextSession);
+		void AppSessionService.saveSession(nextSession);
+	}, []);
+
+	const handleLogout = useCallback(() => {
+		setSession(DEFAULT_APP_SESSION);
+		void AppSessionService.clearSession();
+	}, []);
+
+	const appSessionValue = useMemo(() => session, [session]);
+
+	return (
+		<AppSessionProvider value={appSessionValue}>
+			{isHydratingSession ? (
+				<View style={styles.bootScreen}>
+					<ActivityIndicator animating size="small" color={accent.primary} />
+				</View>
+			) : !session.isOnboarded ? (
+				<AuthFlow onComplete={handleCompleteAuth} />
+			) : isEmergencyActive ? (
+				<EmergencyShell />
+			) : (
+				<MainTabs onLogout={handleLogout} />
+			)}
+		</AppSessionProvider>
+	);
+}
+
+function ThemedApp() {
+	const lowStim = useLowStim();
+	const paperTheme = useMemo(() => getPaperTheme(lowStim), [lowStim]);
+
+	return (
+		<PaperProvider theme={paperTheme}>
+			<EmergencyProvider>
+				<NavigationContainer>
+					<AppContent />
+				</NavigationContainer>
+			</EmergencyProvider>
+		</PaperProvider>
+	);
 }
 
 // ── Root App ────────────────────────────────────────────────
@@ -204,14 +281,17 @@ export default function App() {
 	return (
 		<SafeAreaProvider>
 			<QueryClientProvider client={queryClient}>
-				<PaperProvider theme={theme}>
-					<EmergencyProvider>
-						<NavigationContainer>
-							<AppContent />
-						</NavigationContainer>
-					</EmergencyProvider>
-				</PaperProvider>
+				<ThemedApp />
 			</QueryClientProvider>
 		</SafeAreaProvider>
 	);
 }
+
+const styles = StyleSheet.create({
+	bootScreen: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: colors.background,
+	},
+});

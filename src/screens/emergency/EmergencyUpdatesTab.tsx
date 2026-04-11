@@ -1,14 +1,31 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { CredibilityChip } from "../../components/CredibilityChip";
 import { useEmergency } from "../../context/EmergencyContext";
+import { getLocationDetails } from "../../data/locations";
+import { useAccentColors } from "../../hooks/useAccentColors";
 import { useFlares } from "../../hooks/useFlares";
 import { useLowStim } from "../../hooks/useLowStim";
+import { useNetworkState } from "../../hooks/useNetworkState";
 import { usePreferences } from "../../hooks/usePreferences";
-import { colors, components, spacing, typography } from "../../theme";
+import { resolveBuildingId } from "../../routing/routeHelpers";
+import {
+	colors,
+	components,
+	spacing,
+	typography,
+	withAlpha,
+} from "../../theme";
 import type { Flare, TimelineEntry } from "../../types";
 import { CATEGORY_LABELS } from "../../types";
+
+const TOUCH_TARGET_EXPANSION = {
+	top: 8,
+	right: 8,
+	bottom: 8,
+	left: 8,
+} as const;
 
 function timeAgo(ms: number): string {
 	const diff = Date.now() - ms;
@@ -23,15 +40,47 @@ export const EmergencyUpdatesTab = () => {
 	const { data: flares = [], refetch, isLoading } = useFlares();
 	const { data: prefs } = usePreferences();
 	const lowStim = useLowStim();
+	const accent = useAccentColors();
 	const [lastChecked, setLastChecked] = useState<string | null>(null);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [nearbyExpanded, setNearbyExpanded] = useState(false);
+	const { isConnected } = useNetworkState();
 
-	const isOnline = prefs?.offlineCaching !== false;
+	const isOnline = isConnected && prefs?.offlineCaching !== false;
 
 	const liveFlare: Flare | null = trigger?.flare
 		? (flares.find((f) => f.id === trigger.flare?.id) ?? trigger.flare)
 		: null;
+
+	const getScopedCodeForFlare = useCallback((flare: Flare) => {
+		const locationBuildingCode = flare.locationId
+			? getLocationDetails(flare.locationId).buildingCode
+			: undefined;
+		return locationBuildingCode ?? resolveBuildingId(flare.building);
+	}, []);
+
+	const scopedBuildingCode = trigger?.building
+		? resolveBuildingId(trigger.building)
+		: liveFlare
+			? getScopedCodeForFlare(liveFlare)
+			: undefined;
+
+	const otherLocalFlares = useMemo(
+		() =>
+			flares.filter((flare) => {
+				if (flare.credibility === "resolved" || flare.id === liveFlare?.id) {
+					return false;
+				}
+
+				const flareBuildingCode = getScopedCodeForFlare(flare);
+
+				return (
+					scopedBuildingCode !== undefined &&
+					flareBuildingCode === scopedBuildingCode
+				);
+			}),
+		[flares, liveFlare?.id, scopedBuildingCode, getScopedCodeForFlare],
+	);
 
 	const handleCheckUpdates = async () => {
 		await refetch();
@@ -49,18 +98,22 @@ export const EmergencyUpdatesTab = () => {
 	const renderFlareDetail = (flare: Flare) => (
 		<View style={styles.expandedContent}>
 			<View style={styles.expandedMeta}>
-				<Text style={styles.expandedCategory}>
+				<Text style={[styles.expandedCategory, { color: accent.primary }]}>
 					{CATEGORY_LABELS[flare.category]}
 				</Text>
 				<Text style={styles.expandedLocation}>{flare.location}</Text>
 			</View>
-			<Text style={styles.expandedSummary}>{flare.summary}</Text>
 
 			{flare.timeline.length > 0 && (
 				<View style={styles.expandedTimeline}>
 					{flare.timeline.map((entry: TimelineEntry, i: number) => (
 						<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
-							<View style={styles.timelineDot} />
+							<View
+								style={[
+									styles.timelineDot,
+									{ backgroundColor: accent.primary },
+								]}
+							/>
 							<Text style={styles.timelineTime}>{entry.time}</Text>
 							<Text style={styles.timelineLabel}>{entry.label}</Text>
 						</View>
@@ -68,7 +121,16 @@ export const EmergencyUpdatesTab = () => {
 				</View>
 			)}
 
-			<Text style={styles.expandedAdvice}>
+			<Text
+				style={[
+					styles.expandedAdvice,
+					{
+						color: accent.primary,
+						backgroundColor: withAlpha(accent.primary, "08"),
+					},
+					lowStim && styles.expandedAdviceLowStim,
+				]}
+			>
 				{flare.category === "blocked_entrance"
 					? "Use an alternate entrance. Check the Safe Route tab for the nearest accessible entry."
 					: flare.category === "dense_crowd"
@@ -99,21 +161,30 @@ export const EmergencyUpdatesTab = () => {
 					style={styles.triggerCard}
 					activeOpacity={0.7}
 					onPress={() => toggleExpand(liveFlare.id)}
+					hitSlop={TOUCH_TARGET_EXPANSION}
+					accessibilityRole="button"
+					accessibilityLabel={`Triggering flare, ${CATEGORY_LABELS[liveFlare.category]}`}
+					accessibilityHint="Opens flare details and timeline."
+					accessibilityState={{ expanded: expandedId === liveFlare.id }}
 				>
-					<Text style={styles.cardTitle}>Triggering flare</Text>
+					<Text style={styles.cardTitle}>Current context</Text>
 					<View style={styles.statusRow}>
 						<CredibilityChip level={liveFlare.credibility} lowStim={lowStim} />
-						<Text style={styles.timestamp}>
-							{timeAgo(liveFlare.lastUpdated)}
-						</Text>
+						{!lowStim && (
+							<Text style={styles.timestamp}>
+								{timeAgo(liveFlare.lastUpdated)}
+							</Text>
+						)}
 					</View>
 					<Text style={styles.summary}>{liveFlare.summary}</Text>
 					{expandedId === liveFlare.id && renderFlareDetail(liveFlare)}
-					<Text style={styles.tapHint}>
-						{expandedId === liveFlare.id
-							? "Tap to collapse"
-							: "Tap for details"}
-					</Text>
+					{!lowStim && (
+						<Text style={styles.tapHint}>
+							{expandedId === liveFlare.id
+								? "Tap to collapse"
+								: "Tap for details"}
+						</Text>
+					)}
 				</TouchableOpacity>
 			) : (
 				<View style={styles.noFlareCard}>
@@ -131,16 +202,19 @@ export const EmergencyUpdatesTab = () => {
 					<Button
 						mode="outlined"
 						onPress={handleCheckUpdates}
-						textColor={colors.burgundy}
+						textColor={accent.primary}
 						icon="refresh"
 						loading={isLoading}
-						style={styles.refreshButton}
+						style={[
+							styles.refreshButton,
+							{ borderColor: accent.primaryOutline },
+						]}
 						labelStyle={styles.refreshLabel}
 						contentStyle={styles.refreshContent}
 					>
 						Check for updates
 					</Button>
-					{lastChecked && (
+					{lastChecked && !lowStim && (
 						<Text style={styles.lastChecked}>
 							Last checked at {lastChecked}
 						</Text>
@@ -148,44 +222,54 @@ export const EmergencyUpdatesTab = () => {
 				</View>
 			)}
 
-			{/* Active flares nearby — collapsed by default */}
+			{/* Other active flares in the same location — collapsed by default */}
 			<View style={styles.nearbySection}>
 				<TouchableOpacity
 					style={styles.nearbySectionHeader}
 					onPress={() => setNearbyExpanded((p) => !p)}
 					activeOpacity={0.7}
+					hitSlop={TOUCH_TARGET_EXPANSION}
+					accessibilityRole="button"
+					accessibilityLabel="Other flares near you"
+					accessibilityHint="Expands or collapses nearby flare details."
+					accessibilityState={{ expanded: nearbyExpanded }}
 				>
-					<Text style={styles.cardTitle}>Active flares nearby</Text>
+					<Text style={styles.cardTitle}>Other flares near you</Text>
 					<View style={styles.nearbyHeaderRight}>
-						<Text style={styles.nearbyCount}>
-							{flares.filter((f: Flare) => f.credibility !== "resolved").length}{" "}
-							active
-						</Text>
+						<Text style={styles.nearbyCount}>{otherLocalFlares.length}</Text>
 						<Text style={styles.nearbyArrow}>{nearbyExpanded ? "▾" : "▸"}</Text>
 					</View>
 				</TouchableOpacity>
 
 				{nearbyExpanded &&
-					flares
-						.filter((f: Flare) => f.credibility !== "resolved")
-						.slice(0, 5)
-						.map((f: Flare) => {
+					(otherLocalFlares.length > 0 ? (
+						otherLocalFlares.slice(0, 4).map((f: Flare) => {
 							const isExpanded = expandedId === f.id;
 							return (
 								<TouchableOpacity
 									key={f.id}
 									style={[
 										styles.miniCard,
-										isExpanded && styles.miniCardExpanded,
+										isExpanded && {
+											borderColor: accent.primaryOutline,
+											borderWidth: 2,
+										},
 									]}
 									activeOpacity={0.7}
 									onPress={() => toggleExpand(f.id)}
+									hitSlop={TOUCH_TARGET_EXPANSION}
+									accessibilityRole="button"
+									accessibilityLabel={`${CATEGORY_LABELS[f.category]} at ${f.location}`}
+									accessibilityHint="Opens flare details and timeline."
+									accessibilityState={{ expanded: isExpanded }}
 								>
 									<View style={styles.miniRow}>
 										<CredibilityChip level={f.credibility} lowStim={lowStim} />
-										<Text style={styles.timestamp}>
-											{timeAgo(f.lastUpdated)}
-										</Text>
+										{!lowStim && (
+											<Text style={styles.timestamp}>
+												{timeAgo(f.lastUpdated)}
+											</Text>
+										)}
 									</View>
 									<Text
 										style={styles.miniSummary}
@@ -196,7 +280,14 @@ export const EmergencyUpdatesTab = () => {
 									{isExpanded && renderFlareDetail(f)}
 								</TouchableOpacity>
 							);
-						})}
+						})
+					) : (
+						<View style={styles.noLocalFlaresCard}>
+							<Text style={styles.noLocalFlaresText}>
+								No other active flares are linked to this location right now.
+							</Text>
+						</View>
+					))}
 			</View>
 		</ScrollView>
 	);
@@ -255,12 +346,12 @@ const styles = StyleSheet.create({
 	expandedContent: {
 		borderTopWidth: 1,
 		borderTopColor: colors.border,
-		paddingTop: spacing.sm,
-		marginTop: spacing.xs,
-		gap: spacing.sm,
+		paddingTop: spacing.md,
+		marginTop: spacing.sm,
+		gap: spacing.md,
 	},
 	expandedMeta: {
-		gap: 2,
+		gap: spacing.xs,
 	},
 	expandedCategory: {
 		fontSize: 13,
@@ -279,28 +370,34 @@ const styles = StyleSheet.create({
 		lineHeight: 20,
 	},
 	expandedTimeline: {
-		gap: spacing.xs,
+		gap: spacing.sm,
+		paddingTop: spacing.xs,
 	},
 	timelineRow: {
 		flexDirection: "row",
-		alignItems: "center",
+		alignItems: "flex-start",
 		gap: spacing.sm,
+		paddingVertical: 2,
 	},
 	timelineDot: {
 		width: 6,
 		height: 6,
 		borderRadius: 3,
 		backgroundColor: colors.burgundy,
+		marginTop: 5,
 	},
 	timelineTime: {
 		fontSize: typography.caption.fontSize,
 		fontWeight: typography.chip.fontWeight,
 		color: colors.textSecondary,
-		width: 40,
+		lineHeight: 18,
+		width: 56,
 	},
 	timelineLabel: {
 		fontSize: typography.body.fontSize,
 		color: colors.textPrimary,
+		flex: 1,
+		lineHeight: 20,
 	},
 	expandedAdvice: {
 		fontSize: typography.caption.fontSize,
@@ -310,6 +407,12 @@ const styles = StyleSheet.create({
 		backgroundColor: `${colors.burgundy}08`,
 		padding: spacing.sm,
 		borderRadius: 8,
+		marginTop: spacing.xs,
+	},
+	expandedAdviceLowStim: {
+		fontStyle: "normal",
+		backgroundColor: "transparent",
+		paddingHorizontal: 0,
 	},
 
 	// No flare
@@ -339,7 +442,6 @@ const styles = StyleSheet.create({
 	},
 	refreshButton: {
 		borderRadius: components.cardRadius,
-		borderColor: colors.burgundy,
 		alignSelf: "stretch",
 	},
 	refreshContent: { minHeight: components.touchTarget },
@@ -394,5 +496,17 @@ const styles = StyleSheet.create({
 	miniSummary: {
 		fontSize: typography.body.fontSize,
 		color: colors.textPrimary,
+	},
+	noLocalFlaresCard: {
+		backgroundColor: colors.surface,
+		borderRadius: components.cardRadius,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
+		padding: spacing.md,
+	},
+	noLocalFlaresText: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 20,
 	},
 });

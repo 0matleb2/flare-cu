@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet } from "react-native";
 import { Text, TouchableRipple } from "react-native-paper";
+import { useAccentColors } from "../hooks/useAccentColors";
 import { colors, components, spacing, typography } from "../theme";
 import type { FeedFilter } from "../types";
 import { FEED_FILTER_LABELS } from "../types";
@@ -18,6 +19,8 @@ interface FilterChipsProps {
 }
 
 export const FilterChips = ({ active, onSelect }: FilterChipsProps) => {
+	const accent = useAccentColors();
+
 	return (
 		<ScrollView
 			horizontal
@@ -33,7 +36,9 @@ export const FilterChips = ({ active, onSelect }: FilterChipsProps) => {
 						borderless
 						style={[
 							styles.chip,
-							isActive ? styles.chipActive : styles.chipInactive,
+							isActive
+								? [styles.chipActive, { backgroundColor: accent.primary }]
+								: styles.chipInactive,
 						]}
 					>
 						<Text
@@ -64,9 +69,7 @@ const styles = StyleSheet.create({
 		minHeight: components.touchTarget,
 		justifyContent: "center",
 	},
-	chipActive: {
-		backgroundColor: colors.burgundy,
-	},
+	chipActive: {},
 	chipInactive: {
 		backgroundColor: colors.surface,
 		borderWidth: 1,

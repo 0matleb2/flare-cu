@@ -1,11 +1,22 @@
+import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useEmergency } from "../../context/EmergencyContext";
-import { colors, components, spacing, typography } from "../../theme";
+import { useAccentColors } from "../../hooks/useAccentColors";
+import {
+	colors,
+	components,
+	spacing,
+	typography,
+	withAlpha,
+} from "../../theme";
+import { EmergencyCompletionCard } from "./EmergencyCompletionCard";
 
 export const EmergencyStepsTab = () => {
-	const { steps } = useEmergency();
+	const navigation = useNavigation();
+	const { requestExitPrompt, steps } = useEmergency();
+	const accent = useAccentColors();
 	const [currentStep, setCurrentStep] = useState(0);
 	const [completed, setCompleted] = useState<Set<number>>(new Set());
 
@@ -20,84 +31,93 @@ export const EmergencyStepsTab = () => {
 		if (currentStep > 0) setCurrentStep((p) => p - 1);
 	};
 
-	const allDone = completed.size === steps.length;
+	const handleRestart = () => {
+		setCompleted(new Set());
+		setCurrentStep(0);
+	};
+
+	const allDone = steps.length > 0 && completed.size === steps.length;
 	const step = steps[currentStep];
+
+	if (allDone) {
+		return (
+			<View style={styles.container}>
+				<EmergencyCompletionCard
+					title="Checklist complete"
+					body="You have completed the recommended emergency steps. Stay in your safe location, keep monitoring updates, and only exit emergency mode when you are safe."
+					reviewLabel="Review steps"
+					onViewUpdates={() => navigation.navigate("Updates" as never)}
+					onReview={handleRestart}
+					onExit={requestExitPrompt}
+				/>
+			</View>
+		);
+	}
 
 	return (
 		<View style={styles.container}>
-			{/* Progress bar segments */}
-			<View style={styles.progressRow}>
-				{steps.map((s, i) => (
-					<View
-						key={s.instruction}
-						style={[
-							styles.progressSegment,
-							completed.has(i) && styles.progressComplete,
-							i === currentStep && styles.progressCurrent,
-						]}
-					/>
-				))}
-			</View>
+			<View style={styles.content}>
+				<ScrollView
+					style={styles.scrollArea}
+					contentContainerStyle={styles.scrollContent}
+				>
+					{/* Current step card */}
+					{step && (
+						<View
+							style={[styles.stepCard, { borderColor: accent.primaryOutline }]}
+						>
+							<Text style={styles.currentEyebrow}>Do this now</Text>
+							<Text style={styles.stepInstruction}>{step.instruction}</Text>
+							<Text style={styles.stepDetail}>{step.detail}</Text>
+						</View>
+					)}
 
-			<Text style={styles.stepLabel}>
-				Step {currentStep + 1} of {steps.length}
-			</Text>
+					{/* All steps overview */}
+					<View style={styles.overviewSection}>
+						<Text style={styles.overviewTitle}>All steps</Text>
+						{steps.map((s, i) => {
+							const isDone = completed.has(i);
+							const isCurrent = i === currentStep;
 
-			<ScrollView
-				style={styles.scrollArea}
-				contentContainerStyle={styles.scrollContent}
-			>
-				{/* Current step card */}
-				{step && (
-					<View style={styles.stepCard}>
-						<Text style={styles.stepInstruction}>{step.instruction}</Text>
-						<Text style={styles.stepDetail}>{step.detail}</Text>
-					</View>
-				)}
-
-				{/* All steps overview */}
-				<View style={styles.overviewSection}>
-					<Text style={styles.overviewTitle}>All steps</Text>
-					{steps.map((s, i) => {
-						const isDone = completed.has(i);
-						const isCurrent = i === currentStep;
-
-						return (
-							<View
-								key={s.instruction}
-								style={[styles.overviewRow, isDone && styles.overviewDone]}
-							>
+							return (
 								<View
-									style={[
-										styles.overviewBadge,
-										isDone && styles.overviewBadgeDone,
-										isCurrent && styles.overviewBadgeCurrent,
-									]}
+									key={s.instruction}
+									style={[styles.overviewRow, isDone && styles.overviewDone]}
 								>
-									<Text
+									<View
 										style={[
-											styles.overviewBadgeText,
-											(isDone || isCurrent) && styles.overviewBadgeTextLight,
+											styles.overviewBadge,
+											isDone && { backgroundColor: accent.primary },
+											isCurrent && {
+												backgroundColor: withAlpha(accent.primary, "66"),
+											},
 										]}
 									>
-										{isDone ? "✓" : i + 1}
+										<Text
+											style={[
+												styles.overviewBadgeText,
+												(isDone || isCurrent) && styles.overviewBadgeTextLight,
+											]}
+										>
+											{isDone ? "✓" : i + 1}
+										</Text>
+									</View>
+									<Text
+										style={[
+											styles.overviewText,
+											isDone && styles.overviewTextDone,
+											isCurrent && styles.overviewTextCurrent,
+										]}
+										numberOfLines={1}
+									>
+										{s.instruction}
 									</Text>
 								</View>
-								<Text
-									style={[
-										styles.overviewText,
-										isDone && styles.overviewTextDone,
-										isCurrent && styles.overviewTextCurrent,
-									]}
-									numberOfLines={1}
-								>
-									{s.instruction}
-								</Text>
-							</View>
-						);
-					})}
-				</View>
-			</ScrollView>
+							);
+						})}
+					</View>
+				</ScrollView>
+			</View>
 
 			{/* Navigation buttons */}
 			{!allDone && (
@@ -106,8 +126,12 @@ export const EmergencyStepsTab = () => {
 						<Button
 							mode="outlined"
 							onPress={handlePrev}
-							textColor={colors.burgundy}
-							style={styles.navButton}
+							textColor={accent.primary}
+							style={[
+								styles.navButton,
+								styles.outlineButton,
+								{ borderColor: accent.primaryOutline },
+							]}
 							labelStyle={styles.navLabel}
 							contentStyle={styles.navContent}
 						>
@@ -117,12 +141,9 @@ export const EmergencyStepsTab = () => {
 					<Button
 						mode="contained"
 						onPress={handleNext}
-						buttonColor={colors.burgundy}
+						buttonColor={accent.primary}
 						textColor="#FFFFFF"
-						style={[
-							styles.navButton,
-							{ flex: currentStep > 0 ? 1 : undefined },
-						]}
+						style={styles.navButton}
 						labelStyle={styles.navLabel}
 						contentStyle={styles.navContent}
 					>
@@ -136,50 +157,35 @@ export const EmergencyStepsTab = () => {
 
 const styles = StyleSheet.create({
 	container: { flex: 1 },
-
-	// Progress bar (matches ActionPlan)
-	progressRow: {
-		flexDirection: "row",
-		gap: 4,
-		marginBottom: spacing.xs,
-	},
-	progressSegment: {
+	content: {
 		flex: 1,
-		height: 4,
-		borderRadius: 2,
-		backgroundColor: colors.border,
-	},
-	progressComplete: {
-		backgroundColor: colors.burgundy,
-	},
-	progressCurrent: {
-		backgroundColor: colors.burgundy,
-		opacity: 0.5,
-	},
-
-	stepLabel: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-		marginBottom: spacing.sm,
+		gap: spacing.md,
+		paddingBottom: spacing.lg,
 	},
 
 	scrollArea: { flex: 1 },
 	scrollContent: { gap: spacing.md, paddingBottom: spacing.md },
-
 	// Current step card (matches ActionPlan direction card)
 	stepCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
 		borderWidth: 2,
 		borderColor: colors.burgundy,
-		padding: spacing.lg,
+		padding: spacing.xl,
 		gap: spacing.sm,
 	},
+	currentEyebrow: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: typography.chip.fontWeight,
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 0.8,
+	},
 	stepInstruction: {
-		fontSize: 20,
+		fontSize: 22,
 		fontWeight: "700",
 		color: colors.textPrimary,
-		lineHeight: 26,
+		lineHeight: 30,
 	},
 	stepDetail: {
 		fontSize: typography.body.fontSize,
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
 	overviewTitle: {
 		fontSize: 13,
 		fontWeight: "600",
-		color: colors.textSecondary,
+		color: colors.textDisabled,
 		textTransform: "uppercase",
 		letterSpacing: 1,
 		marginBottom: spacing.xs,
@@ -206,7 +212,7 @@ const styles = StyleSheet.create({
 		paddingVertical: spacing.xs,
 	},
 	overviewDone: {
-		opacity: 0.5,
+		opacity: 0.45,
 	},
 	overviewBadge: {
 		width: 24,
@@ -233,7 +239,7 @@ const styles = StyleSheet.create({
 	overviewText: {
 		flex: 1,
 		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
+		color: colors.textDisabled,
 	},
 	overviewTextDone: {
 		textDecorationLine: "line-through",
@@ -247,11 +253,14 @@ const styles = StyleSheet.create({
 	navRow: {
 		flexDirection: "row",
 		gap: spacing.sm,
-		marginTop: spacing.sm,
+		paddingTop: spacing.sm,
 	},
 	navButton: {
 		flex: 1,
 		borderRadius: components.cardRadius,
+	},
+	outlineButton: {
+		borderColor: colors.burgundy,
 	},
 	navContent: { minHeight: components.touchTarget },
 	navLabel: {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlareService } from "../services/FlareService";
-import type { Flare, FlareCategory } from "../types";
+import type { CreateFlareInput, Flare } from "../types";
 
 export const useFlares = () => {
 	return useQuery({
@@ -13,14 +13,32 @@ export const useCreateFlare = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: {
-			category: FlareCategory;
-			building: string;
-			entrance?: string;
-			note?: string;
-		}) => FlareService.createFlare(data),
+		mutationFn: (data: CreateFlareInput) => FlareService.createFlare(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["flares"] });
+			queryClient.invalidateQueries({ queryKey: ["offlineSyncStatus"] });
+		},
+	});
+};
+
+export const useOfflineSyncStatus = () => {
+	return useQuery({
+		queryKey: ["offlineSyncStatus"],
+		queryFn: async () => ({
+			queueCount: await FlareService.getQueueCount(),
+			lastSync: await FlareService.getLastSync(),
+		}),
+	});
+};
+
+export const useSyncQueuedReports = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: () => FlareService.syncQueuedReports(),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["flares"] });
+			queryClient.invalidateQueries({ queryKey: ["offlineSyncStatus"] });
 		},
 	});
 };
@@ -72,13 +90,80 @@ export const useUpvoteFlare = () => {
 			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
 				old?.map((f) => {
 					if (f.id !== id) return f;
-					const newUpvotes = f.upvotedByUser
-						? Math.max(0, f.upvotes - 1)
-						: f.upvotes + 1;
+					const wasUpvoted = f.upvotedByUser;
+					const wasDownvoted = f.downvotedByUser;
+					let newUpvotes = f.upvotes;
+					let newUpvotedByUser = f.upvotedByUser;
+					let newDownvotedByUser = f.downvotedByUser;
+
+					if (wasUpvoted) {
+						newUpvotes -= 1;
+						newUpvotedByUser = false;
+					} else {
+						newUpvotes += 1;
+						newUpvotedByUser = true;
+						if (wasDownvoted) {
+							newUpvotes += 1;
+							newDownvotedByUser = false;
+						}
+					}
+
 					return {
 						...f,
 						upvotes: newUpvotes,
-						upvotedByUser: !f.upvotedByUser,
+						upvotedByUser: newUpvotedByUser,
+						downvotedByUser: newDownvotedByUser,
+					};
+				}),
+			);
+			return { previous };
+		},
+		onError: (_err, _id, context) => {
+			queryClient.setQueryData(["flares"], context?.previous);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["flares"] });
+		},
+	});
+};
+
+// Toggle downvote with optimistic update
+export const useDownvoteFlare = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (id: string) => {
+			await FlareService.downvoteFlare(id);
+		},
+		onMutate: async (id) => {
+			await queryClient.cancelQueries({ queryKey: ["flares"] });
+			const previous = queryClient.getQueryData<Flare[]>(["flares"]);
+			queryClient.setQueryData<Flare[]>(["flares"], (old) =>
+				old?.map((f) => {
+					if (f.id !== id) return f;
+					const wasUpvoted = f.upvotedByUser;
+					const wasDownvoted = f.downvotedByUser;
+					let newUpvotes = f.upvotes;
+					let newUpvotedByUser = f.upvotedByUser;
+					let newDownvotedByUser = f.downvotedByUser;
+
+					if (wasDownvoted) {
+						newUpvotes += 1;
+						newDownvotedByUser = false;
+					} else {
+						newUpvotes -= 1;
+						newDownvotedByUser = true;
+						if (wasUpvoted) {
+							newUpvotes -= 1;
+							newUpvotedByUser = false;
+						}
+					}
+
+					return {
+						...f,
+						upvotes: newUpvotes,
+						upvotedByUser: newUpvotedByUser,
+						downvotedByUser: newDownvotedByUser,
 					};
 				}),
 			);
@@ -114,6 +199,7 @@ export const useDeleteFlare = () => {
 		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: ["flares"] });
+			queryClient.invalidateQueries({ queryKey: ["offlineSyncStatus"] });
 		},
 	});
 };

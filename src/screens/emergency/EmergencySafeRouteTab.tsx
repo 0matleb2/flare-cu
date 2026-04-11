@@ -1,259 +1,375 @@
-import { useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useEmergency } from "../../context/EmergencyContext";
+import { getLocationDetails } from "../../data/locations";
+import { useAccentColors } from "../../hooks/useAccentColors";
+import { useFlares } from "../../hooks/useFlares";
 import { usePreferences } from "../../hooks/usePreferences";
-import { colors, components, spacing, typography } from "../../theme";
+import {
+	getRouteInstructions,
+	mapFlaresToActiveFlares,
+	resolveBuildingId,
+} from "../../routing/routeHelpers";
+import { DEFAULT_CAMPUS_BUILDING } from "../../services/CampusLocationService";
+import {
+	colors,
+	components,
+	spacing,
+	typography,
+	withAlpha,
+} from "../../theme";
+import { EmergencyCompletionCard } from "./EmergencyCompletionCard";
 
-// Emergency-constraint safe routes (pre-built, no user configuration)
-interface SafeRoute {
+const TOUCH_TARGET_EXPANSION = {
+	top: 8,
+	right: 8,
+	bottom: 8,
+	left: 8,
+} as const;
+
+const STAFFED_SAFE_DESTINATIONS = [
+	{
+		id: "H",
+		label: "Hall Building lobby",
+		description: "Closest staffed lobby with campus security nearby",
+	},
+	{
+		id: "EV",
+		label: "EV Building lobby",
+		description: "Large staffed indoor lobby with multiple exit options",
+	},
+	{
+		id: "LB",
+		label: "Library Building lobby",
+		description: "Alternative indoor lobby with staff presence",
+	},
+] as const;
+
+interface SafeRouteOption {
 	id: string;
 	label: string;
 	description: string;
-	icon: string;
 	steps: string[];
+	stepWarnings: Array<string | undefined>;
+	edgeIds: string[];
+	destinationId: string;
+	totalDistance: number;
 }
 
-function getSafeRoutes(
-	building: string | undefined,
-	mobilityFriendly: boolean,
-): SafeRoute[] {
-	const routes: SafeRoute[] = [];
+function sumStepDistance(steps: Array<{ distance: number }>) {
+	return steps.reduce((total, step) => total + step.distance, 0);
+}
 
-	if (building === "Hall Building" || building === "H Building") {
-		routes.push({
-			id: "nearest-safe",
-			label: "Nearest safe building",
-			description: "EV Building lobby — staffed security desk",
-			icon: "🏢",
-			steps: mobilityFriendly
-				? [
-						"Take the elevator to ground floor.",
-						"Exit Hall via the accessible ramp on Mackay St.",
-						"Walk east on de Maisonneuve Blvd (1 min).",
-						"Enter EV Building — accessible entrance on the left.",
-					]
-				: [
-						"Exit Hall Building through the Mackay St doors.",
-						"Walk east on de Maisonneuve Blvd (1 min).",
-						"Enter EV Building main entrance.",
-					],
-		});
-	} else if (building === "EV Building") {
-		routes.push({
-			id: "nearest-safe",
-			label: "Nearest safe building",
-			description: "Hall Building lobby — staffed security desk",
-			icon: "🏢",
-			steps: mobilityFriendly
-				? [
-						"Take the elevator to ground floor.",
-						"Exit EV via the accessible entrance on de Maisonneuve.",
-						"Walk west on de Maisonneuve Blvd (1 min).",
-						"Enter Hall Building — accessible entrance on Guy St side.",
-					]
-				: [
-						"Exit EV Building through the main entrance.",
-						"Walk west on de Maisonneuve Blvd (1 min).",
-						"Enter Hall Building main entrance.",
-					],
-		});
-	} else {
-		routes.push({
-			id: "nearest-safe",
-			label: "Nearest safe building",
-			description: "Hall or EV Building lobby — staffed security",
-			icon: "🏢",
-			steps: [
-				"Identify the nearest large building (Hall, EV, or LB).",
-				"Walk directly to the main entrance.",
-				"Go to the ground-floor lobby and stay near the security desk.",
-			],
-		});
-	}
+function normalizeEdgeId(edgeId: string) {
+	return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
+}
 
-	routes.push({
-		id: "away",
-		label: "Move away from area",
-		description: "General evacuation — open, well-lit path",
-		icon: "🚶",
-		steps: [
-			"Walk in the opposite direction of the disruption.",
-			"Head toward a main boulevard (de Maisonneuve or Ste-Catherine).",
-			"Stay on well-lit, populated sidewalks.",
-			"Enter the first open building with a lobby.",
-		],
-	});
-
-	return routes;
+function edgeSignature(edgeIds: string[]) {
+	return edgeIds.map(normalizeEdgeId).sort().join("|");
 }
 
 export const EmergencySafeRouteTab = () => {
-	const { trigger } = useEmergency();
+	const navigation = useNavigation();
+	const { trigger, requestExitPrompt } = useEmergency();
 	const { data: prefs } = usePreferences();
+	const { data: flares = [] } = useFlares();
+	const accent = useAccentColors();
 	const mobilityFriendly = prefs?.mobilityFriendly ?? false;
+	const currentBuilding =
+		trigger?.building ??
+		trigger?.flare?.building ??
+		DEFAULT_CAMPUS_BUILDING.name;
+	const currentBuildingId = resolveBuildingId(currentBuilding);
+	const activeFlares = useMemo(() => mapFlaresToActiveFlares(flares), [flares]);
+	const affectedBuildingCode = trigger?.flare?.locationId
+		? getLocationDetails(trigger.flare.locationId).buildingCode
+		: trigger?.flare?.building
+			? resolveBuildingId(trigger.flare.building)
+			: undefined;
+	const routePreferences = useMemo(
+		() =>
+			[
+				...(mobilityFriendly ? (["accessibleOnly"] as const) : []),
+				"avoidCrowds",
+				"preferIndoor",
+				"shortest",
+			] as const,
+		[mobilityFriendly],
+	);
 
-	const building = trigger?.building ?? trigger?.flare?.building;
-	const routes = getSafeRoutes(building, mobilityFriendly);
+	const routeOptions = useMemo(() => {
+		const candidates = STAFFED_SAFE_DESTINATIONS.filter(
+			(destination) =>
+				destination.id !== currentBuildingId &&
+				destination.id !== affectedBuildingCode,
+		);
 
-	const [activeRoute, setActiveRoute] = useState<string | null>(null);
+		const options: SafeRouteOption[] = candidates
+			.flatMap((destination) => {
+				const response = getRouteInstructions({
+					startId: currentBuildingId,
+					endId: destination.id,
+					preferences: [...routePreferences],
+					activeFlares,
+				});
+
+				if (!response.ok || !response.route) {
+					return [];
+				}
+
+				return [
+					{
+						id: destination.id,
+						label: destination.label,
+						description: destination.description,
+						steps: response.route.steps.map((step) => step.text),
+						stepWarnings: response.route.steps.map((step) => step.warning),
+						edgeIds: response.route.edgeIds,
+						destinationId: destination.id,
+						totalDistance: sumStepDistance(response.route.steps),
+					},
+				];
+			})
+			.sort((a, b) => a.totalDistance - b.totalDistance);
+
+		const chosen: SafeRouteOption[] = [];
+		const seenSignatures = new Set<string>();
+
+		for (const option of options) {
+			const signature = edgeSignature(option.edgeIds);
+			if (seenSignatures.has(signature)) {
+				continue;
+			}
+			chosen.push(option);
+			seenSignatures.add(signature);
+			if (chosen.length === 2) {
+				break;
+			}
+		}
+
+		return chosen.map((option, index) => ({
+			...option,
+			id: index === 0 ? "recommended" : "alternative",
+			label:
+				index === 0
+					? mobilityFriendly
+						? "Accessible"
+						: "Fast route"
+					: "Alternative route",
+		}));
+	}, [
+		activeFlares,
+		affectedBuildingCode,
+		currentBuildingId,
+		mobilityFriendly,
+		routePreferences,
+	]);
+
+	const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
 	const [currentStep, setCurrentStep] = useState(0);
-	const selectedRoute = routes.find((r) => r.id === activeRoute);
+	const [completed, setCompleted] = useState<Set<number>>(new Set());
+	const [isRouteComplete, setIsRouteComplete] = useState(false);
+	const selectedRoute =
+		routeOptions.find((route) => route.id === activeRouteId) ?? null;
 
-	// ═══ Active route — step-by-step view ═══
 	if (selectedRoute) {
-		const totalSteps = selectedRoute.steps.length;
-		const isLastStep = currentStep >= totalSteps - 1;
+		const isLastStep = currentStep >= selectedRoute.steps.length - 1;
+		const currentWarning = selectedRoute.stepWarnings[currentStep];
+
+		const handleNext = () => {
+			setCompleted((prev) => new Set(prev).add(currentStep));
+			if (isLastStep) {
+				setIsRouteComplete(true);
+			} else {
+				setCurrentStep((step) => step + 1);
+			}
+		};
+
+		const handlePrev = () => {
+			if (currentStep > 0) {
+				setCurrentStep((step) => step - 1);
+				return;
+			}
+
+			setActiveRouteId(null);
+			setCurrentStep(0);
+			setCompleted(new Set());
+			setIsRouteComplete(false);
+		};
+
+		const handleReviewRoute = () => {
+			setIsRouteComplete(false);
+			setCompleted(new Set());
+			setCurrentStep(0);
+		};
+
+		if (isRouteComplete) {
+			return (
+				<View style={styles.container}>
+					<View style={styles.content}>
+						<EmergencyCompletionCard
+							title="Route complete"
+							body="You have completed this route. Stay aware of nearby updates and only exit emergency mode when you are safe."
+							reviewLabel="Review route"
+							onViewUpdates={() => navigation.navigate("Updates" as never)}
+							onReview={handleReviewRoute}
+							onExit={requestExitPrompt}
+						/>
+					</View>
+				</View>
+			);
+		}
 
 		return (
 			<View style={styles.container}>
-				<View style={styles.activeHeader}>
-					<Text style={styles.activeLabel}>{selectedRoute.label}</Text>
-					<Text style={styles.activeDesc}>{selectedRoute.description}</Text>
-				</View>
-
-				{/* Progress */}
-				<View style={styles.progressRow}>
-					{selectedRoute.steps.map((step, i) => (
+				<View style={styles.content}>
+					<ScrollView contentContainerStyle={styles.scrollContent}>
 						<View
-							key={step}
 							style={[
-								styles.progressSegment,
-								i <= currentStep && styles.progressDone,
-							]}
-						/>
-					))}
-				</View>
-
-				{/* Current step card */}
-				<View style={styles.stepCard}>
-					<View style={styles.stepBadge}>
-						<Text style={styles.stepBadgeText}>{currentStep + 1}</Text>
-					</View>
-					<Text style={styles.stepInstruction}>
-						{selectedRoute.steps[currentStep]}
-					</Text>
-				</View>
-
-				{/* All steps overview */}
-				<View style={styles.allSteps}>
-					{selectedRoute.steps.map((step, i) => (
-						<View
-							key={step}
-							style={[
-								styles.allStepRow,
-								i === currentStep && styles.allStepActive,
+								styles.directionCard,
+								{ borderColor: accent.primaryOutline },
 							]}
 						>
-							<Text
-								style={[
-									styles.allStepNum,
-									i <= currentStep && styles.allStepNumDone,
-								]}
-							>
-								{i < currentStep ? "✓" : i + 1}
+							<Text style={styles.currentEyebrow}>Do this now</Text>
+							<Text style={styles.stepInstruction}>
+								{selectedRoute.steps[currentStep]}
 							</Text>
-							<Text
-								style={[
-									styles.allStepText,
-									i < currentStep && styles.allStepTextDone,
-									i === currentStep && styles.allStepTextCurrent,
-								]}
-								numberOfLines={1}
-							>
-								{step}
+							<Text style={styles.directionDetail}>
+								{selectedRoute.description}
 							</Text>
+							{currentWarning && (
+								<View style={styles.warningBox}>
+									<Text style={styles.warningText}>{currentWarning}</Text>
+								</View>
+							)}
 						</View>
-					))}
+
+						<View style={styles.overviewSection}>
+							<Text style={styles.overviewTitle}>All steps</Text>
+							{selectedRoute.steps.map((step, index) => {
+								const isDone = completed.has(index);
+								const isCurrent = index === currentStep;
+
+								return (
+									<View
+										key={`${selectedRoute.id}-${step}-overview`}
+										style={[styles.overviewRow, isDone && styles.overviewDone]}
+									>
+										<View
+											style={[
+												styles.overviewBadge,
+												isDone && { backgroundColor: accent.primary },
+												isCurrent && {
+													backgroundColor: withAlpha(accent.primary, "66"),
+												},
+											]}
+										>
+											<Text
+												style={[
+													styles.overviewBadgeText,
+													(isDone || isCurrent) &&
+														styles.overviewBadgeTextLight,
+												]}
+											>
+												{isDone ? "✓" : index + 1}
+											</Text>
+										</View>
+										<Text
+											style={[
+												styles.overviewText,
+												isDone && styles.overviewTextDone,
+												isCurrent && styles.overviewTextCurrent,
+											]}
+											numberOfLines={1}
+										>
+											{step}
+										</Text>
+									</View>
+								);
+							})}
+						</View>
+					</ScrollView>
 				</View>
 
-				{/* Navigation */}
 				<View style={styles.navRow}>
 					<Button
 						mode="outlined"
-						onPress={() => {
-							if (currentStep === 0) {
-								setActiveRoute(null);
-								setCurrentStep(0);
-							} else {
-								setCurrentStep((s) => s - 1);
-							}
-						}}
-						textColor={colors.textSecondary}
-						style={styles.navButton}
-						labelStyle={styles.navLabel}
+						onPress={handlePrev}
+						textColor={accent.primary}
+						style={[
+							styles.navButton,
+							styles.outlineButton,
+							{ borderColor: accent.primaryOutline },
+						]}
+						labelStyle={styles.buttonLabel}
+						contentStyle={styles.buttonContent}
 					>
-						{currentStep === 0 ? "Back" : "Previous"}
+						Previous
 					</Button>
-					{!isLastStep && (
-						<Button
-							mode="contained"
-							onPress={() => setCurrentStep((s) => s + 1)}
-							buttonColor={colors.burgundy}
-							textColor="#FFFFFF"
-							style={styles.navButton}
-							labelStyle={styles.navLabel}
-						>
-							Next step
-						</Button>
-					)}
-					{isLastStep && (
-						<Button
-							mode="contained"
-							onPress={() => {
-								setActiveRoute(null);
-								setCurrentStep(0);
-							}}
-							buttonColor={colors.statusSafe}
-							textColor="#FFFFFF"
-							style={styles.navButton}
-							labelStyle={styles.navLabel}
-						>
-							Done
-						</Button>
-					)}
+					<Button
+						mode="contained"
+						onPress={handleNext}
+						buttonColor={accent.primary}
+						textColor="#FFFFFF"
+						style={styles.navButton}
+						labelStyle={styles.buttonLabel}
+						contentStyle={styles.buttonContent}
+					>
+						{isLastStep ? "Mark complete" : "Next step"}
+					</Button>
 				</View>
 			</View>
 		);
 	}
 
-	// ═══ Route selection ═══
+	if (routeOptions.length === 0) {
+		return (
+			<View style={styles.container}>
+				<View style={styles.emptyCard}>
+					<Text style={styles.emptyTitle}>No clear safe route right now</Text>
+					<Text style={styles.emptyBody}>
+						Stay inside your current building if possible, follow the Steps tab,
+						and contact campus security before moving through the affected area.
+					</Text>
+				</View>
+			</View>
+		);
+	}
+
 	return (
 		<ScrollView
 			style={styles.container}
 			contentContainerStyle={styles.selectionContent}
 		>
-			<Text style={styles.heading}>Safe routes</Text>
-			{mobilityFriendly && (
-				<View style={styles.accessibilityBadge}>
-					<Text style={styles.accessibilityText}>
-						♿ Accessible routes prioritized
-					</Text>
-				</View>
-			)}
-
-			{routes.map((route) => (
+			{routeOptions.map((route) => (
 				<TouchableOpacity
 					key={route.id}
 					style={styles.routeCard}
 					activeOpacity={0.7}
 					onPress={() => {
-						setActiveRoute(route.id);
+						setActiveRouteId(route.id);
 						setCurrentStep(0);
+						setCompleted(new Set());
+						setIsRouteComplete(false);
 					}}
+					hitSlop={TOUCH_TARGET_EXPANSION}
+					accessibilityRole="button"
+					accessibilityLabel={route.label}
+					accessibilityHint={`${route.description}. Opens a ${route.steps.length}-step route.`}
 				>
-					<View style={styles.routeTop}>
-						<Text style={styles.routeIcon}>{route.icon}</Text>
-						<View style={styles.routeTextGroup}>
-							<Text style={styles.routeLabel}>{route.label}</Text>
-							<Text style={styles.routeDesc}>{route.description}</Text>
-						</View>
+					<View style={styles.routeTextGroup}>
+						<Text style={styles.routeLabel}>{route.label}</Text>
+						<Text style={styles.routeDesc}>{route.description}</Text>
 					</View>
 					<View style={styles.routeBottom}>
 						<Text style={styles.routeStepCount}>
 							{route.steps.length} steps
 						</Text>
-						<Text style={styles.routeArrow}>→</Text>
+						<Text style={[styles.routeArrow, { color: accent.primary }]}>
+							→
+						</Text>
 					</View>
 				</TouchableOpacity>
 			))}
@@ -262,49 +378,36 @@ export const EmergencySafeRouteTab = () => {
 };
 
 const styles = StyleSheet.create({
-	container: { flex: 1 },
+	container: { flex: 1, backgroundColor: colors.background },
+	content: {
+		flex: 1,
+		gap: spacing.md,
+		paddingBottom: spacing.lg,
+	},
 
-	// ═══ Selection view ═══
 	selectionContent: {
 		gap: spacing.md,
 		paddingBottom: spacing.lg,
 	},
-	heading: {
-		fontSize: typography.h1.fontSize,
-		fontWeight: typography.h1.fontWeight,
-		color: colors.textPrimary,
-	},
-	accessibilityBadge: {
-		backgroundColor: `${colors.statusInfo}14`,
-		borderRadius: components.cardRadius,
-		padding: spacing.sm,
-	},
-	accessibilityText: {
+	context: {
 		fontSize: typography.caption.fontSize,
-		color: colors.statusInfo,
-		fontWeight: "600",
+		color: colors.textSecondary,
+		marginTop: -spacing.sm,
 	},
-
-	// Route card
+	contextText: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+	},
 	routeCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
-		borderWidth: 2,
+		borderWidth: components.cardBorderWidth,
 		borderColor: colors.border,
-		padding: spacing.lg,
-		gap: spacing.md,
-	},
-	routeTop: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-	},
-	routeIcon: {
-		fontSize: 28,
+		padding: components.cardPadding,
+		gap: spacing.sm,
 	},
 	routeTextGroup: {
-		flex: 1,
-		gap: 2,
+		gap: spacing.xs,
 	},
 	routeLabel: {
 		fontSize: typography.h2.fontSize,
@@ -312,147 +415,150 @@ const styles = StyleSheet.create({
 		color: colors.textPrimary,
 	},
 	routeDesc: {
-		fontSize: typography.caption.fontSize,
+		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
-		lineHeight: 16,
+		lineHeight: 20,
 	},
 	routeBottom: {
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "center",
-		borderTopWidth: 1,
-		borderTopColor: colors.border,
-		paddingTop: spacing.sm,
 	},
 	routeStepCount: {
 		fontSize: typography.caption.fontSize,
-		color: colors.textDisabled,
+		color: colors.textSecondary,
 	},
 	routeArrow: {
 		fontSize: 18,
-		color: colors.burgundy,
 		fontWeight: "700",
 	},
-
-	// ═══ Active route view ═══
-	activeHeader: {
-		gap: 2,
-		marginBottom: spacing.sm,
-	},
-	activeLabel: {
-		fontSize: typography.h1.fontSize,
-		fontWeight: typography.h1.fontWeight,
-		color: colors.textPrimary,
-	},
-	activeDesc: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-	},
-
-	// Progress
-	progressRow: {
-		flexDirection: "row",
-		gap: 4,
-		marginBottom: spacing.md,
-	},
-	progressSegment: {
-		flex: 1,
-		height: 4,
-		borderRadius: 2,
-		backgroundColor: colors.border,
-	},
-	progressDone: {
-		backgroundColor: colors.burgundy,
-	},
-
-	// Current step
-	stepCard: {
+	scrollContent: { gap: spacing.md, paddingBottom: spacing.md },
+	directionCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
 		borderWidth: 2,
 		borderColor: colors.burgundy,
-		padding: spacing.lg,
-		flexDirection: "row",
-		alignItems: "flex-start",
-		gap: spacing.md,
+		padding: spacing.xl,
+		gap: spacing.sm,
 	},
-	stepBadge: {
-		width: 32,
-		height: 32,
-		borderRadius: 16,
-		backgroundColor: colors.burgundy,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	stepBadgeText: {
-		color: "#FFFFFF",
-		fontSize: 16,
-		fontWeight: "700",
+	currentEyebrow: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: typography.chip.fontWeight,
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		letterSpacing: 0.8,
 	},
 	stepInstruction: {
-		flex: 1,
-		fontSize: typography.body.fontSize,
+		fontSize: 22,
+		fontWeight: "700",
 		color: colors.textPrimary,
+		lineHeight: 30,
+	},
+	directionDetail: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
 		lineHeight: 22,
 	},
-
-	// All steps overview
-	allSteps: {
-		backgroundColor: colors.surface,
-		borderRadius: components.cardRadius,
-		borderWidth: components.cardBorderWidth,
-		borderColor: colors.border,
+	warningBox: {
+		backgroundColor: "#FFF3E0",
+		borderRadius: 8,
 		padding: spacing.sm,
-		marginTop: spacing.sm,
-		gap: 2,
+		marginTop: spacing.xs,
 	},
-	allStepRow: {
+	warningText: {
+		fontSize: typography.caption.fontSize,
+		color: colors.statusCaution,
+		lineHeight: 18,
+	},
+	overviewSection: {
+		gap: spacing.xs,
+	},
+	overviewTitle: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: colors.textDisabled,
+		textTransform: "uppercase",
+		letterSpacing: 1,
+		marginBottom: spacing.xs,
+	},
+	overviewRow: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: spacing.sm,
-		paddingVertical: 6,
-		paddingHorizontal: spacing.xs,
-		borderRadius: 8,
+		paddingVertical: spacing.xs,
 	},
-	allStepActive: {
-		backgroundColor: `${colors.burgundy}08`,
+	overviewDone: {
+		opacity: 0.45,
 	},
-	allStepNum: {
-		width: 20,
+	overviewBadge: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: colors.border,
+	},
+	overviewBadgeDone: {
+		backgroundColor: colors.burgundy,
+	},
+	overviewBadgeCurrent: {
+		backgroundColor: `${colors.burgundy}66`,
+	},
+	overviewBadgeText: {
 		fontSize: typography.caption.fontSize,
-		color: colors.textDisabled,
-		textAlign: "center",
-		fontWeight: "600",
-	},
-	allStepNumDone: {
-		color: colors.burgundy,
-	},
-	allStepText: {
-		flex: 1,
-		fontSize: typography.caption.fontSize,
-		color: colors.textDisabled,
-	},
-	allStepTextDone: {
+		fontWeight: "700",
 		color: colors.textSecondary,
 	},
-	allStepTextCurrent: {
-		color: colors.textPrimary,
-		fontWeight: "600",
+	overviewBadgeTextLight: {
+		color: "#FFFFFF",
 	},
-
-	// Navigation
+	overviewText: {
+		flex: 1,
+		fontSize: typography.body.fontSize,
+		color: colors.textDisabled,
+	},
+	overviewTextDone: {
+		textDecorationLine: "line-through",
+	},
+	overviewTextCurrent: {
+		fontWeight: typography.h2.fontWeight,
+		color: colors.textPrimary,
+	},
 	navRow: {
 		flexDirection: "row",
 		gap: spacing.sm,
-		marginTop: spacing.md,
+		paddingTop: spacing.sm,
 	},
 	navButton: {
 		flex: 1,
 		borderRadius: components.cardRadius,
-		borderColor: colors.border,
 	},
-	navLabel: {
+	outlineButton: {
+		borderColor: colors.burgundy,
+	},
+	buttonLabel: {
 		fontSize: typography.button.fontSize,
 		fontWeight: typography.button.fontWeight,
+	},
+	buttonContent: {
+		minHeight: components.touchTarget,
+	},
+	emptyCard: {
+		backgroundColor: colors.surface,
+		borderRadius: components.cardRadius,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
+		padding: spacing.lg,
+		gap: spacing.md,
+	},
+	emptyTitle: {
+		fontSize: typography.h2.fontSize,
+		fontWeight: typography.h2.fontWeight,
+		color: colors.textPrimary,
+	},
+	emptyBody: {
+		fontSize: typography.body.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 22,
 	},
 });

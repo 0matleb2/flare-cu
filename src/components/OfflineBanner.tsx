@@ -7,6 +7,7 @@ type BannerVariant = "offline" | "location";
 interface OfflineBannerProps {
 	variant: BannerVariant;
 	lastSyncTime?: string;
+	queueCount?: number;
 }
 
 const BANNER_STYLES: Record<
@@ -25,17 +26,25 @@ const BANNER_STYLES: Record<
 	},
 };
 
-const BANNER_COPY: Record<BannerVariant, (time?: string) => string> = {
-	offline: (time) =>
-		time
-			? `Offline — showing cached updates. Last sync ${time}.`
-			: "Offline — showing cached updates.",
+const BANNER_COPY: Record<
+	BannerVariant,
+	(time?: string, queueCount?: number) => string
+> = {
+	offline: (time, queueCount) => {
+		const queueText = queueCount
+			? ` ${queueCount} report${queueCount === 1 ? "" : "s"} waiting to sync on this device.`
+			: "";
+		return time
+			? `Offline — showing cached campus reports. Last sync: ${time}.${queueText}`
+			: `Offline — showing cached campus reports.${queueText}`;
+	},
 	location: () => "Location services off — results may be limited.",
 };
 
 export const OfflineBanner = ({
 	variant,
 	lastSyncTime,
+	queueCount,
 }: OfflineBannerProps) => {
 	const style = BANNER_STYLES[variant];
 
@@ -50,7 +59,7 @@ export const OfflineBanner = ({
 			]}
 		>
 			<Text style={[styles.text, { color: style.text }]}>
-				{BANNER_COPY[variant](lastSyncTime)}
+				{BANNER_COPY[variant](lastSyncTime, queueCount)}
 			</Text>
 		</View>
 	);

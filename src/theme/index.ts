@@ -58,6 +58,61 @@ export const colors = {
 	locationBorder: "#BFDBFE",
 } as const;
 
+function hexToRgb(hex: string) {
+	const normalized = hex.replace("#", "");
+	const value =
+		normalized.length === 3
+			? normalized
+					.split("")
+					.map((char) => `${char}${char}`)
+					.join("")
+			: normalized;
+
+	const int = Number.parseInt(value, 16);
+
+	return {
+		r: (int >> 16) & 255,
+		g: (int >> 8) & 255,
+		b: int & 255,
+	};
+}
+
+function channelToHex(value: number) {
+	return Math.round(value).toString(16).padStart(2, "0");
+}
+
+function blendHex(foreground: string, background: string, amount: number) {
+	const clampedAmount = Math.max(0, Math.min(1, amount));
+	const fg = hexToRgb(foreground);
+	const bg = hexToRgb(background);
+
+	return `#${channelToHex(fg.r + (bg.r - fg.r) * clampedAmount)}${channelToHex(
+		fg.g + (bg.g - fg.g) * clampedAmount,
+	)}${channelToHex(fg.b + (bg.b - fg.b) * clampedAmount)}`;
+}
+
+export function withAlpha(hex: string, alphaHex: string) {
+	return `${hex}${alphaHex}`;
+}
+
+export function getAccentColors(lowStim = false) {
+	if (!lowStim) {
+		return {
+			primary: colors.burgundy,
+			primaryDark: colors.burgundyDark,
+			primarySoft: colors.burgundyLight,
+			primaryOutline: colors.burgundy,
+		};
+	}
+
+	return {
+		primary: blendHex(colors.burgundy, colors.surface, 0.35),
+		primaryDark: blendHex(colors.burgundyDark, colors.surface, 0.4),
+		primarySoft: blendHex(colors.burgundyLight, colors.surface, 0.4),
+		primaryOutline: blendHex(colors.burgundy, colors.border, 0.45),
+	};
+}
+
 // ── Component style constants ───────────────────────────────
 export const components = {
 	cardRadius: 12,
@@ -72,34 +127,29 @@ export const components = {
 } as const;
 
 // ── React Native Paper theme override ───────────────────────
-export const theme = {
-	...DefaultTheme,
-	colors: {
-		...DefaultTheme.colors,
-		// Primary brand
-		primary: colors.burgundy,
-		onPrimary: "#FFFFFF",
+export function getPaperTheme(lowStim = false) {
+	const accent = getAccentColors(lowStim);
 
-		// Secondary (use info blue as secondary accent)
-		secondary: colors.statusInfo,
-		onSecondary: "#FFFFFF",
+	return {
+		...DefaultTheme,
+		colors: {
+			...DefaultTheme.colors,
+			primary: accent.primary,
+			onPrimary: "#FFFFFF",
+			secondary: colors.statusInfo,
+			onSecondary: "#FFFFFF",
+			background: colors.background,
+			surface: colors.surface,
+			onSurface: colors.textPrimary,
+			onSurfaceVariant: colors.textSecondary,
+			error: colors.statusHighTension,
+			onError: "#FFFFFF",
+			outline: colors.border,
+			outlineVariant: colors.border,
+			surfaceVariant: accent.primarySoft,
+			surfaceDisabled: colors.background,
+		},
+	};
+}
 
-		// Backgrounds & surfaces
-		background: colors.background,
-		surface: colors.surface,
-		onSurface: colors.textPrimary,
-		onSurfaceVariant: colors.textSecondary,
-
-		// Error
-		error: colors.statusHighTension,
-		onError: "#FFFFFF",
-
-		// Outlines
-		outline: colors.border,
-		outlineVariant: colors.border,
-
-		// Elevation / surface variants
-		surfaceVariant: colors.burgundyLight,
-		surfaceDisabled: colors.background,
-	},
-};
+export const theme = getPaperTheme(false);

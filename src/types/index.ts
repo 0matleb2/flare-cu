@@ -7,6 +7,8 @@ export type FlareCategory =
 	| "construction"
 	| "other";
 
+export type FlareSeverity = "low" | "medium" | "high";
+
 export type CredibilityLevel =
 	| "reported"
 	| "confirmed"
@@ -24,15 +26,20 @@ export interface Flare {
 	credibility: CredibilityLevel;
 	summary: string; // one-sentence summary
 	location: string; // building + entrance or intersection
+	locationId?: string; // specific node/location from data/locations
 	building: string;
 	entrance?: string;
+	severity?: FlareSeverity;
 	timestamp: number; // created at
 	lastUpdated: number; // last status change
 	timeline: TimelineEntry[];
 	savedByUser: boolean;
 	note?: string; // optional reporter note (max 140 chars)
-	upvotes: number; // community confirmation count
+	otherText?: string; // custom text when category is "other"
+	syncStatus?: "queued" | "synced";
+	upvotes: number; // community confirmation score (upvotes - downvotes)
 	upvotedByUser: boolean; // whether current user has upvoted
+	downvotedByUser: boolean; // whether current user has downvoted
 }
 
 // Number of upvotes needed to auto-promote from reported → confirmed
@@ -88,7 +95,10 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 
 export interface RouteStep {
 	instruction: string; // imperative verb sentence
+	detail?: string;
+	distance?: string;
 	warning?: string;
+	flareId?: string;
 }
 
 export type RouteLabel = "safest" | "accessible" | "fastest_safe";
@@ -126,11 +136,25 @@ export interface ActionPlan {
 
 export interface OfflineQueueItem {
 	id: string;
+	flareId?: string;
 	category: FlareCategory;
+	locationId?: string;
 	building: string;
 	entrance?: string;
+	severity?: FlareSeverity;
 	note?: string;
+	otherText?: string;
 	timestamp: number;
+}
+
+export interface CreateFlareInput {
+	category: FlareCategory;
+	locationId?: string;
+	building?: string;
+	entrance?: string;
+	severity?: FlareSeverity;
+	note?: string;
+	otherText?: string;
 }
 
 // ── Feed Filters ────────────────────────────────────────────

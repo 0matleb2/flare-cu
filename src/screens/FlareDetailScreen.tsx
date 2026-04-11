@@ -5,8 +5,16 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredibilityChip } from "../components/CredibilityChip";
+import { EmptyState } from "../components/EmptyState";
+import { useAppSession } from "../context/AppSessionContext";
 import { useEmergency } from "../context/EmergencyContext";
-import { useFlares, useSaveFlare, useUpvoteFlare } from "../hooks/useFlares";
+import { useAccentColors } from "../hooks/useAccentColors";
+import {
+	useDownvoteFlare,
+	useFlares,
+	useSaveFlare,
+	useUpvoteFlare,
+} from "../hooks/useFlares";
 import { useLowStim } from "../hooks/useLowStim";
 import type {
 	FlareDetailNavProp,
@@ -15,6 +23,13 @@ import type {
 import { colors, components, spacing, typography } from "../theme";
 import type { CredibilityLevel } from "../types";
 import { CATEGORY_LABELS, CREDIBILITY_STEPS } from "../types";
+
+const TOUCH_TARGET_EXPANSION = {
+	top: 8,
+	right: 8,
+	bottom: 8,
+	left: 8,
+} as const;
 
 type FlareDetailRoute = RouteProp<NearbyStackParamList, "FlareDetail">;
 
@@ -35,22 +50,51 @@ export const FlareDetailScreen = () => {
 	const { data: flares = [] } = useFlares();
 	const saveFlare = useSaveFlare();
 	const upvoteFlare = useUpvoteFlare();
+	const downvoteFlare = useDownvoteFlare();
+	const { accessMode } = useAppSession();
 	const { activate: activateEmergency } = useEmergency();
 	const lowStim = useLowStim();
+	const accent = useAccentColors();
 	const [timelineExpanded, setTimelineExpanded] = useState(!lowStim);
+	const [voteGateMessageVisible, setVoteGateMessageVisible] = useState(false);
 
 	const flare = flares.find((f) => f.id === route.params.flareId);
+	const canConfirmFlare = accessMode === "account";
 
 	if (!flare) {
 		return (
 			<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
-				<Text style={styles.notFoundTitle}>Flare not found</Text>
-				<Button onPress={() => navigation.goBack()} textColor={colors.burgundy}>
-					Go back
-				</Button>
+				<View style={styles.notFoundCard}>
+					<EmptyState
+						title="Flare not found"
+						message="This report may have been removed or is no longer available on this device."
+						hint="Return to the feed and refresh to see the latest campus reports."
+						actionLabel="Go back"
+						onAction={() => navigation.goBack()}
+						compact
+					/>
+				</View>
 			</View>
 		);
 	}
+
+	const handleUpvotePress = () => {
+		if (!canConfirmFlare) {
+			setVoteGateMessageVisible(true);
+			return;
+		}
+		setVoteGateMessageVisible(false);
+		upvoteFlare.mutate(flare.id);
+	};
+
+	const handleDownvotePress = () => {
+		if (!canConfirmFlare) {
+			setVoteGateMessageVisible(true);
+			return;
+		}
+		setVoteGateMessageVisible(false);
+		downvoteFlare.mutate(flare.id);
+	};
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -66,7 +110,7 @@ export const FlareDetailScreen = () => {
 				</Button>
 				<IconButton
 					icon={flare.savedByUser ? "bookmark" : "bookmark-outline"}
-					iconColor={flare.savedByUser ? colors.burgundy : colors.textSecondary}
+					iconColor={flare.savedByUser ? accent.primary : colors.textSecondary}
 					size={24}
 					onPress={() =>
 						saveFlare.mutate({ id: flare.id, wasSaved: flare.savedByUser })
@@ -87,37 +131,69 @@ export const FlareDetailScreen = () => {
 					<Text style={styles.heroSummary}>{flare.summary}</Text>
 					<View style={styles.heroMeta}>
 						<Text style={styles.heroLocation}>{flare.location}</Text>
-						<Text style={styles.heroDot}>·</Text>
-						<Text style={styles.heroTime}>{timeAgo(flare.lastUpdated)}</Text>
+						{!lowStim && (
+							<>
+								<Text style={styles.heroDot}>·</Text>
+								<Text style={styles.heroTime}>
+									{timeAgo(flare.lastUpdated)}
+								</Text>
+							</>
+						)}
 					</View>
-
-					{/* Upvote / confirm */}
 					{flare.credibility !== "resolved" && (
-						<View style={styles.upvoteRow}>
-							<Button
-								mode={flare.upvotedByUser ? "contained" : "outlined"}
-								icon="arrow-up-bold"
-								onPress={() => upvoteFlare.mutate(flare.id)}
-								buttonColor={flare.upvotedByUser ? colors.burgundy : undefined}
-								textColor={flare.upvotedByUser ? "#FFFFFF" : colors.burgundy}
-								style={styles.upvoteButton}
-								labelStyle={styles.upvoteLabel}
-								compact
-							>
-								{flare.upvotedByUser ? "Confirmed" : "Confirm"}
-							</Button>
-							<Text style={styles.upvoteHint}>
-								{flare.upvotes} {flare.upvotes === 1 ? "person" : "people"}{" "}
-								confirmed this
-							</Text>
+						<View style={styles.votePill}>
+							<IconButton
+								icon={
+									flare.upvotedByUser
+										? "arrow-up-bold"
+										: "arrow-up-bold-outline"
+								}
+								iconColor={
+									canConfirmFlare
+										? flare.upvotedByUser
+											? accent.primary
+											: colors.textSecondary
+										: colors.textDisabled
+								}
+								size={18}
+								onPress={handleUpvotePress}
+								disabled={upvoteFlare.isPending || downvoteFlare.isPending}
+								style={styles.voteButton}
+								accessibilityLabel="Upvote this flare"
+							/>
+							<Text style={styles.voteCount}>{flare.upvotes}</Text>
+							<IconButton
+								icon={
+									flare.downvotedByUser
+										? "arrow-down-bold"
+										: "arrow-down-bold-outline"
+								}
+								iconColor={
+									canConfirmFlare
+										? flare.downvotedByUser
+											? accent.primary
+											: colors.textSecondary
+										: colors.textDisabled
+								}
+								size={18}
+								onPress={handleDownvotePress}
+								disabled={upvoteFlare.isPending || downvoteFlare.isPending}
+								style={styles.voteButton}
+								accessibilityLabel="Downvote this flare"
+							/>
 						</View>
+					)}
+					{voteGateMessageVisible && !canConfirmFlare && (
+						<Text style={styles.voteHint}>
+							Sign in with your Concordia account to confirm reports.
+						</Text>
 					)}
 				</View>
 
 				{/* ═══ Start plan ═══ */}
 				<Button
 					mode="contained"
-					buttonColor={colors.burgundy}
+					buttonColor={accent.primary}
 					textColor="#FFFFFF"
 					icon="play-circle-outline"
 					style={styles.actionButton}
@@ -136,9 +212,14 @@ export const FlareDetailScreen = () => {
 						style={styles.timelineHeader}
 						onPress={() => setTimelineExpanded((p) => !p)}
 						activeOpacity={0.7}
+						hitSlop={TOUCH_TARGET_EXPANSION}
+						accessibilityRole="button"
+						accessibilityLabel="Timeline"
+						accessibilityHint="Expands or collapses the flare timeline."
+						accessibilityState={{ expanded: timelineExpanded }}
 					>
 						<Text style={styles.sectionTitle}>Timeline</Text>
-						<Text style={styles.timelineToggle}>
+						<Text style={[styles.timelineToggle, { color: accent.primary }]}>
 							{timelineExpanded ? "Hide" : "View"}
 						</Text>
 					</TouchableOpacity>
@@ -147,7 +228,13 @@ export const FlareDetailScreen = () => {
 							{/* Actual timeline entries */}
 							{flare.timeline.map((entry, i) => (
 								<View key={`${entry.time}-${i}`} style={styles.timelineRow}>
-									<View style={[styles.timelineDot, styles.timelineDotDone]} />
+									<View
+										style={[
+											styles.timelineDot,
+											styles.timelineDotDone,
+											{ backgroundColor: accent.primary },
+										]}
+									/>
 									<Text style={styles.timelineTime}>{entry.time}</Text>
 									<Text style={styles.timelineLabel}>{entry.label}</Text>
 								</View>
@@ -218,13 +305,16 @@ const styles = StyleSheet.create({
 		color: colors.textPrimary,
 		padding: components.screenPaddingH,
 	},
+	notFoundCard: {
+		paddingHorizontal: components.screenPaddingH,
+	},
 
 	// Hero card
 	heroCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
-		borderWidth: 2,
-		borderColor: colors.burgundy,
+		borderWidth: components.cardBorderWidth,
+		borderColor: colors.border,
 		padding: spacing.lg,
 		gap: spacing.sm,
 	},
@@ -236,15 +326,15 @@ const styles = StyleSheet.create({
 	heroCategory: {
 		fontSize: 13,
 		fontWeight: "600",
-		color: colors.burgundy,
+		color: colors.textSecondary,
 		textTransform: "uppercase",
 		letterSpacing: 1,
 	},
 	heroSummary: {
-		fontSize: 20,
+		fontSize: 18,
 		fontWeight: "700",
 		color: colors.textPrimary,
-		lineHeight: 26,
+		lineHeight: 24,
 	},
 	heroMeta: {
 		flexDirection: "row",
@@ -263,25 +353,28 @@ const styles = StyleSheet.create({
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
 	},
-	upvoteRow: {
+	votePill: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: spacing.sm,
+		backgroundColor: colors.background,
+		borderRadius: 999,
+		alignSelf: "flex-start",
+		paddingHorizontal: 0,
 		marginTop: spacing.xs,
-		borderTopWidth: 1,
-		borderTopColor: colors.border,
-		paddingTop: spacing.sm,
+		borderWidth: 1,
+		borderColor: colors.border,
+		height: 36,
 	},
-	upvoteButton: {
-		borderRadius: 20,
-		borderColor: colors.burgundy,
+	voteButton: {
+		margin: -4,
 	},
-	upvoteLabel: {
-		fontSize: 13,
+	voteCount: {
+		color: colors.textPrimary,
+		fontSize: 14,
 		fontWeight: "600",
+		marginHorizontal: 6,
 	},
-	upvoteHint: {
-		flex: 1,
+	voteHint: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textSecondary,
 	},
@@ -348,12 +441,12 @@ const styles = StyleSheet.create({
 		fontSize: typography.caption.fontSize,
 		fontWeight: typography.chip.fontWeight,
 		color: colors.textSecondary,
-		width: 40,
+		width: 75,
 	},
 	timelineTimePending: {
 		fontSize: typography.caption.fontSize,
 		color: colors.textDisabled,
-		width: 40,
+		width: 75,
 	},
 	timelineLabel: {
 		fontSize: typography.body.fontSize,

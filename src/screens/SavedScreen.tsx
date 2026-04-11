@@ -2,25 +2,34 @@ import { useNavigation } from "@react-navigation/native";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyState } from "../components/EmptyState";
 import { FlareCard } from "../components/FlareCard";
-import { useFlares } from "../hooks/useFlares";
+import { useFlares, useOfflineSyncStatus } from "../hooks/useFlares";
+import { useLowStim } from "../hooks/useLowStim";
 import type { SavedMainNavProp } from "../navigation/types";
 import { colors, components, spacing, typography } from "../theme";
+import { formatLastSyncLabel } from "../utils/syncLabels";
 
 export const SavedScreen = () => {
 	const insets = useSafeAreaInsets();
-	const { data: flares = [] } = useFlares();
+	const { data: flares = [], isError, error, refetch } = useFlares();
+	const { data: syncStatus } = useOfflineSyncStatus();
 	const navigation = useNavigation<SavedMainNavProp>();
+	const lowStim = useLowStim();
 
 	const savedFlares = flares.filter((f) => f.savedByUser);
-	const syncTime = new Date().toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-	const syncDate = new Date().toLocaleDateString([], {
-		month: "short",
-		day: "numeric",
-	});
+	const lastSyncLabel = formatLastSyncLabel(syncStatus?.lastSync);
+	const queuedCount = syncStatus?.queueCount ?? 0;
+	const loadError =
+		error instanceof Error
+			? error.message
+			: "We couldn't load your saved flares right now.";
+	const syncSummary =
+		queuedCount > 0
+			? `${queuedCount} report${queuedCount === 1 ? "" : "s"} waiting to sync`
+			: lastSyncLabel === "Not synced yet on this device"
+				? "Device sync has not run yet"
+				: "All offline reports are synced";
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
@@ -31,11 +40,23 @@ export const SavedScreen = () => {
 				<Text style={styles.sectionTitle}>
 					Saved flares ({savedFlares.length})
 				</Text>
-				{savedFlares.length > 0 ? (
+				{isError ? (
+					<EmptyState
+						title="Couldn't load saved flares"
+						message={loadError}
+						hint="Try refreshing once the app regains access to local data."
+						actionLabel="Try again"
+						onAction={() => {
+							void refetch();
+						}}
+						compact
+					/>
+				) : savedFlares.length > 0 ? (
 					savedFlares.map((flare) => (
 						<FlareCard
 							key={flare.id}
 							flare={flare}
+							lowStim={lowStim}
 							onPress={() =>
 								navigation.navigate("FlareDetail", {
 									flareId: flare.id,
@@ -44,27 +65,26 @@ export const SavedScreen = () => {
 						/>
 					))
 				) : (
-					<View style={styles.emptyCard}>
-						<Text style={styles.emptyText}>No saved flares yet.</Text>
-						<Text style={styles.emptyHint}>
-							Tap "Save flare" on any flare detail to add it here.
-						</Text>
-					</View>
+					<EmptyState
+						title="No saved flares yet"
+						message="Save a flare from its detail page to keep it handy during your route or emergency flow."
+						hint="Saved flares stay on this device so you can return to them quickly."
+						compact
+					/>
 				)}
 
-				{/* Offline pack */}
-				<Text style={styles.sectionTitle}>Offline pack</Text>
+				{/* Sync status */}
+				<Text style={styles.sectionTitle}>Sync status</Text>
 				<View style={styles.card}>
 					<View style={styles.row}>
 						<Text style={styles.label}>Last sync</Text>
-						<Text style={styles.value}>
-							{syncDate}, {syncTime}
-						</Text>
+						<Text style={styles.value}>{lastSyncLabel}</Text>
 					</View>
 					<View style={styles.row}>
-						<Text style={styles.label}>Cached items</Text>
-						<Text style={styles.value}>{flares.length} flares</Text>
+						<Text style={styles.label}>Queued reports</Text>
+						<Text style={styles.value}>{queuedCount}</Text>
 					</View>
+					<Text style={styles.syncSummary}>{syncSummary}</Text>
 				</View>
 			</ScrollView>
 		</View>
@@ -100,24 +120,6 @@ const styles = StyleSheet.create({
 		padding: components.cardPadding,
 		gap: spacing.sm,
 	},
-	emptyCard: {
-		backgroundColor: colors.surface,
-		borderRadius: components.cardRadius,
-		borderWidth: components.cardBorderWidth,
-		borderColor: colors.border,
-		padding: spacing.lg,
-		alignItems: "center",
-		gap: spacing.xs,
-	},
-	emptyText: {
-		fontSize: typography.body.fontSize,
-		color: colors.textSecondary,
-	},
-	emptyHint: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textDisabled,
-		textAlign: "center",
-	},
 	row: {
 		flexDirection: "row",
 		justifyContent: "space-between",
@@ -131,5 +133,10 @@ const styles = StyleSheet.create({
 		fontSize: typography.body.fontSize,
 		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
+	},
+	syncSummary: {
+		fontSize: typography.caption.fontSize,
+		color: colors.textSecondary,
+		lineHeight: 18,
 	},
 });

@@ -1,194 +1,190 @@
 import type { RouteProp } from "@react-navigation/native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFlares } from "../hooks/useFlares";
+import { usePreferences } from "../hooks/usePreferences";
 import type {
 	NearbyStackParamList,
 	RouteStackParamList,
 } from "../navigation/types";
-import { colors, components, spacing, typography } from "../theme";
-import { CATEGORY_LABELS } from "../types";
+import {
+	getRouteInstructions,
+	mapFlaresToActiveFlares,
+	resolveBuildingId,
+} from "../routing/routeHelpers";
+import { DEFAULT_CAMPUS_BUILDING } from "../services/CampusLocationService";
+import {
+	colors,
+	components,
+	getAccentColors,
+	spacing,
+	typography,
+} from "../theme";
+import { CATEGORY_LABELS, type RouteStep } from "../types";
+import { getRecommendedAction } from "../utils/recommendations";
 
-// This screen is used from both NearbyStack (ActionPlan) and RouteStack (RouteActionPlan).
 type ActionPlanRoute =
 	| RouteProp<NearbyStackParamList, "ActionPlan">
 	| RouteProp<RouteStackParamList, "RouteActionPlan">;
-
-interface DirectionStep {
-	instruction: string;
-	detail: string;
-	distance?: string;
-	warning?: string;
-}
-
-// Generate practical walking directions based on flare context
-function getDirections(building?: string, entrance?: string): DirectionStep[] {
-	if (building === "Hall Building") {
-		return [
-			{
-				instruction: "Start at your current location",
-				detail:
-					"Face Hall Building (the large building with the glass facade on de Maisonneuve Blvd).",
-			},
-			{
-				instruction: "Walk toward Mackay Street",
-				detail:
-					"Head west along de Maisonneuve Blvd. The Mackay side entrance is on your left.",
-				distance: "~1 min",
-			},
-			{
-				instruction: `Enter via ${entrance ?? "the side entrance"}`,
-				detail:
-					"Look for the double doors. Accessible entrance with ramp is 10m further along Mackay St.",
-			},
-			{
-				instruction: "Inside: head to the main lobby",
-				detail:
-					"Take the corridor straight ahead. Elevators are on the right, stairs on the left. Security desk is in the lobby.",
-			},
-		];
-	}
-
-	if (building === "EV Building") {
-		return [
-			{
-				instruction: "Start at your current location",
-				detail:
-					"Face EV Building on de Maisonneuve Blvd, east of Hall Building.",
-			},
-			{
-				instruction: "Walk east on de Maisonneuve",
-				detail:
-					"Cross Guy Street at the lights. EV Building entrance is ahead on the south side.",
-				distance: "~2 min",
-			},
-			{
-				instruction: `Enter via ${entrance ?? "the main entrance"}`,
-				detail:
-					"Use the revolving doors or the accessible door to the right. The atrium is straight ahead.",
-			},
-			{
-				instruction: "Inside: the atrium connects all wings",
-				detail:
-					"Elevators are to the left. The sky-bridge to Hall Building is on floor 2. Security is at the ground-floor desk.",
-			},
-		];
-	}
-
-	if (building === "LB Building") {
-		return [
-			{
-				instruction: "Start at your current location",
-				detail:
-					"LB Building (Webster Library) is on de Maisonneuve Blvd, west of Guy Street.",
-			},
-			{
-				instruction: "Walk west on de Maisonneuve",
-				detail:
-					"Pass the GM Building on your right. LB Building is the large building ahead.",
-				distance: "~3 min",
-			},
-			{
-				instruction: `Enter via ${entrance ?? "the main entrance"}`,
-				detail:
-					"The main entrance faces de Maisonneuve. Webster Library is on floors 2–4.",
-			},
-			{
-				instruction: "Inside: lobby and library access",
-				detail:
-					"Elevators and stairs are to the right of the entrance. Study spaces on floors 2–4.",
-			},
-		];
-	}
-
-	if (building === "GM Building") {
-		return [
-			{
-				instruction: "Start at your current location",
-				detail:
-					"GM Building is on de Maisonneuve Blvd, near the corner of Guy Street.",
-			},
-			{
-				instruction: "Walk toward Guy Street",
-				detail:
-					"Head toward the intersection of Guy and de Maisonneuve. GM Building is on the south side.",
-				distance: "~2 min",
-			},
-			{
-				instruction: `Enter via ${entrance ?? "the main entrance"}`,
-				detail:
-					"The main entrance faces de Maisonneuve. There is a secondary entrance on Guy Street.",
-			},
-			{
-				instruction: "Inside: find your destination",
-				detail:
-					"Check the directory in the lobby. Elevators are straight ahead past the entrance.",
-			},
-		];
-	}
-
-	// Generic fallback
-	return [
-		{
-			instruction: "Start at your current location",
-			detail: "Face the direction of your destination building.",
-		},
-		{
-			instruction: "Walk toward your destination",
-			detail:
-				"Stay on well-lit, populated routes. Use de Maisonneuve Blvd or Ste-Catherine as your main corridor.",
-			distance: "~3–5 min",
-		},
-		{
-			instruction: "Enter the building",
-			detail:
-				"Use the main entrance. Look for accessibility signs if needed. Check for posted notices.",
-		},
-		{
-			instruction: "Find your destination inside",
-			detail:
-				"Check the lobby directory. If unsure, ask at the security or reception desk.",
-		},
-	];
-}
 
 export const ActionPlanScreen = () => {
 	const navigation = useNavigation();
 	const route = useRoute<ActionPlanRoute>();
 	const insets = useSafeAreaInsets();
 	const { data: flares = [] } = useFlares();
+	const { data: prefs } = usePreferences();
+	const accent = getAccentColors(prefs?.lowStimulation ?? false);
 
 	const flare = flares.find((f) => f.id === route.params.planId);
 
-	// When launched from Route flow, no matching flare exists — use route params as fallback
-	const building =
-		flare?.building ?? (route.params as { building?: string }).building;
-	const entrance =
-		flare?.entrance ?? (route.params as { entrance?: string }).entrance;
-	const directions = getDirections(building, entrance);
+	const routeParams = route.params as {
+		building?: string;
+		entrance?: string;
+		fromBuilding?: string;
+		zonePromptEnabled?: boolean;
+		steps?: RouteStep[];
+	};
+
+	const building = flare?.building ?? routeParams.building;
+	const _entrance = flare?.entrance ?? routeParams.entrance;
+	const fromBuilding = routeParams.fromBuilding ?? DEFAULT_CAMPUS_BUILDING.name;
+
+	const startId = resolveBuildingId(fromBuilding);
+	const endId = resolveBuildingId(building || "H");
+
+	const activeFlares = mapFlaresToActiveFlares(flares);
+
+	const routeResponse = getRouteInstructions({
+		startId,
+		endId,
+		activeFlares,
+		preferences: ["shortest"],
+	});
+
+	let directions: RouteStep[] = [];
+	if (routeParams.steps && routeParams.steps.length > 0) {
+		directions = routeParams.steps;
+	} else if (routeResponse.ok && routeResponse.route) {
+		directions = routeResponse.route.steps.map((s) => ({
+			instruction: s.text,
+			detail: s.indoor ? "Indoor path" : "Outdoor path",
+			distance: `${s.distance} units`,
+			warning: s.warning,
+			flareId: s.flareId,
+		}));
+	} else {
+		directions = [
+			{
+				instruction: "No safe route available",
+				detail: routeResponse.message,
+			},
+		];
+	}
+	const planSteps =
+		directions.length > 0
+			? directions
+			: [
+					{
+						instruction: "No safe route available",
+						detail:
+							"Try another destination or check the latest campus updates.",
+					},
+				];
 
 	const [currentStep, setCurrentStep] = useState(0);
 	const [completed, setCompleted] = useState<Set<number>>(new Set());
-	const allDone = currentStep >= directions.length;
+	const [alertedZoneSteps, setAlertedZoneSteps] = useState<Set<number>>(
+		new Set(),
+	);
+	const [zonePromptsDismissedForTrip, setZonePromptsDismissedForTrip] =
+		useState(false);
+	const allDone = currentStep >= planSteps.length;
 
 	const handleNext = () => {
+		const nextStep = currentStep + 1;
 		setCompleted((prev) => new Set(prev).add(currentStep));
-		setCurrentStep((p) => p + 1);
+		setCurrentStep(nextStep);
 	};
 
 	const handleBack = () => {
 		if (currentStep > 0) setCurrentStep((p) => p - 1);
 	};
 
+	const openFlareDetails = useCallback(
+		(flareId: string) => {
+			const parentNavigation = navigation.getParent();
+			if (parentNavigation) {
+				// biome-ignore lint/suspicious/noExplicitAny: nested tab navigation target
+				(parentNavigation as any).navigate("NearbyTab", {
+					screen: "FlareDetail",
+					params: { flareId },
+				});
+				return;
+			}
+
+			// biome-ignore lint/suspicious/noExplicitAny: fallback when rendered inside Nearby stack directly
+			(navigation as any).navigate("FlareDetail", { flareId });
+		},
+		[navigation],
+	);
+
+	const step = planSteps[Math.min(currentStep, planSteps.length - 1)];
+	const zoneFlare = step.flareId
+		? (() => {
+				const flare = flares.find((candidate) => candidate.id === step.flareId);
+				return flare &&
+					(flare.credibility === "confirmed" ||
+						flare.credibility === "verified")
+					? flare
+					: null;
+			})()
+		: null;
+	const zoneRecommendation = zoneFlare
+		? getRecommendedAction(
+				zoneFlare.category,
+				zoneFlare.severity ?? "medium",
+				true,
+			)
+		: undefined;
+	const shouldShowZoneAlert =
+		routeParams.zonePromptEnabled === true &&
+		prefs !== undefined &&
+		prefs.lowStimulation !== true &&
+		zonePromptsDismissedForTrip !== true &&
+		!!zoneFlare &&
+		!alertedZoneSteps.has(currentStep);
+
+	useEffect(() => {
+		if (!shouldShowZoneAlert || !zoneFlare) {
+			return;
+		}
+
+		setAlertedZoneSteps((prev) => new Set(prev).add(currentStep));
+
+		Alert.alert("Zone of interest", zoneFlare.summary, [
+			{
+				text: "View flare details",
+				onPress: () => openFlareDetails(zoneFlare.id),
+			},
+			{
+				text: "Dismiss for this trip",
+				onPress: () => setZonePromptsDismissedForTrip(true),
+			},
+			{ text: "Continue", style: "cancel" },
+		]);
+	}, [currentStep, openFlareDetails, shouldShowZoneAlert, zoneFlare]);
+
 	if (allDone) {
 		return (
 			<View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
 				<View style={styles.doneContent}>
-					<Text style={styles.doneEmoji}>✓</Text>
-					<Text style={styles.doneTitle}>You've arrived</Text>
+					<Text style={[styles.doneEmoji, { color: accent.primary }]}>✓</Text>
+					<Text style={[styles.doneTitle, { color: accent.primary }]}>
+						You've arrived
+					</Text>
 					<Text style={styles.doneBody}>
 						All steps complete. Stay safe, and check the feed for updates.
 					</Text>
@@ -196,7 +192,7 @@ export const ActionPlanScreen = () => {
 				<Button
 					mode="contained"
 					onPress={() => navigation.goBack()}
-					buttonColor={colors.burgundy}
+					buttonColor={accent.primary}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
@@ -207,8 +203,6 @@ export const ActionPlanScreen = () => {
 			</View>
 		);
 	}
-
-	const step = directions[currentStep];
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -231,33 +225,48 @@ export const ActionPlanScreen = () => {
 						{CATEGORY_LABELS[flare.category]} · {flare.location}
 					</Text>
 				)}
+				{!flare && building && (
+					<Text style={styles.context}>
+						{fromBuilding ? `${fromBuilding} → ` : ""}
+						{building}
+					</Text>
+				)}
 
 				{/* Progress bar */}
 				<View style={styles.progressRow}>
-					{directions.map((d, i) => (
+					{planSteps.map((d, i) => (
 						<View
 							key={`p-${d.instruction}`}
 							style={[
 								styles.progressSegment,
-								completed.has(i) && styles.progressComplete,
-								i === currentStep && styles.progressCurrent,
+								completed.has(i) && { backgroundColor: accent.primary },
+								i === currentStep && {
+									backgroundColor: accent.primary,
+									opacity: 0.5,
+								},
 							]}
 						/>
 					))}
 				</View>
 
-				<Text style={styles.stepLabel}>
-					Step {currentStep + 1} of {directions.length}
-					{step.distance && ` · ${step.distance}`}
-				</Text>
-
 				{/* Current direction card */}
-				<View style={styles.directionCard}>
+				<View
+					style={[styles.directionCard, { borderColor: accent.primaryOutline }]}
+				>
 					<Text style={styles.directionInstruction}>{step.instruction}</Text>
-					<Text style={styles.directionDetail}>{step.detail}</Text>
-					{step.warning && (
+					{step.detail && (
+						<Text style={styles.directionDetail}>{step.detail}</Text>
+					)}
+					{(step.warning || zoneRecommendation) && (
 						<View style={styles.warningBox}>
-							<Text style={styles.warningText}>⚠️ {step.warning}</Text>
+							{step.warning && (
+								<Text style={styles.warningText}>{step.warning}</Text>
+							)}
+							{zoneRecommendation && (
+								<Text style={styles.recommendationText}>
+									Recommended action: {zoneRecommendation}
+								</Text>
+							)}
 						</View>
 					)}
 				</View>
@@ -265,7 +274,7 @@ export const ActionPlanScreen = () => {
 				{/* All steps overview */}
 				<View style={styles.overviewSection}>
 					<Text style={styles.overviewTitle}>All steps</Text>
-					{directions.map((d, i) => (
+					{planSteps.map((d, i) => (
 						<View
 							key={d.instruction}
 							style={[
@@ -276,8 +285,12 @@ export const ActionPlanScreen = () => {
 							<View
 								style={[
 									styles.overviewBadge,
-									completed.has(i) && styles.overviewBadgeDone,
-									i === currentStep && styles.overviewBadgeCurrent,
+									completed.has(i) && {
+										backgroundColor: accent.primary,
+									},
+									i === currentStep && {
+										backgroundColor: accent.primary,
+									},
 								]}
 							>
 								<Text
@@ -313,10 +326,14 @@ export const ActionPlanScreen = () => {
 					<Button
 						mode="outlined"
 						onPress={handleBack}
-						textColor={colors.burgundy}
+						textColor={accent.primary}
 						labelStyle={styles.buttonLabel}
 						contentStyle={styles.buttonContent}
-						style={[styles.navButton, styles.outlineButton]}
+						style={[
+							styles.navButton,
+							styles.outlineButton,
+							{ borderColor: accent.primaryOutline },
+						]}
 					>
 						Previous
 					</Button>
@@ -324,13 +341,13 @@ export const ActionPlanScreen = () => {
 				<Button
 					mode="contained"
 					onPress={handleNext}
-					buttonColor={colors.burgundy}
+					buttonColor={accent.primary}
 					textColor="#FFFFFF"
 					labelStyle={styles.buttonLabel}
 					contentStyle={styles.buttonContent}
 					style={styles.navButton}
 				>
-					{currentStep < directions.length - 1 ? "Next step" : "Complete"}
+					{currentStep < planSteps.length - 1 ? "Next step" : "Complete"}
 				</Button>
 			</View>
 		</View>
@@ -383,17 +400,11 @@ const styles = StyleSheet.create({
 		opacity: 0.5,
 	},
 
-	stepLabel: {
-		fontSize: typography.caption.fontSize,
-		color: colors.textSecondary,
-	},
-
 	// Direction card
 	directionCard: {
 		backgroundColor: colors.surface,
 		borderRadius: components.cardRadius,
 		borderWidth: 2,
-		borderColor: colors.burgundy,
 		padding: spacing.lg,
 		gap: spacing.sm,
 	},
@@ -414,10 +425,16 @@ const styles = StyleSheet.create({
 		borderRadius: 8,
 		padding: spacing.sm,
 		marginTop: spacing.xs,
+		gap: spacing.xs,
 	},
 	warningText: {
 		fontSize: typography.caption.fontSize,
 		color: colors.statusCaution,
+	},
+	recommendationText: {
+		fontSize: typography.caption.fontSize,
+		fontWeight: "600",
+		color: colors.textPrimary,
 	},
 
 	// Overview

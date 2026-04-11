@@ -26,17 +26,25 @@ export interface EmergencyStep {
 
 interface EmergencyContextValue {
 	isActive: boolean;
+	isExitPromptVisible: boolean;
 	trigger: EmergencyTrigger | null;
 	steps: EmergencyStep[];
 	activate: (trigger: EmergencyTrigger) => void;
+	updateTrigger: (trigger: EmergencyTrigger) => void;
+	requestExitPrompt: () => void;
+	dismissExitPrompt: () => void;
 	deactivate: () => void;
 }
 
 const EmergencyContext = createContext<EmergencyContextValue>({
 	isActive: false,
+	isExitPromptVisible: false,
 	trigger: null,
 	steps: [],
 	activate: () => {},
+	updateTrigger: () => {},
+	requestExitPrompt: () => {},
+	dismissExitPrompt: () => {},
 	deactivate: () => {},
 });
 
@@ -46,10 +54,20 @@ const CAMPUS_SECURITY = "514-848-3717";
 
 const SAFE_POINTS: Record<string, string> = {
 	"Hall Building": "EV Building lobby, 1 min walk east on de Maisonneuve",
+	"Henry F. Hall Building":
+		"EV Building lobby, 1 min walk east on de Maisonneuve",
 	"EV Building": "Hall Building lobby, 1 min walk west on de Maisonneuve",
+	"Engineering, Computer Science and Visual Arts Integrated Complex":
+		"Hall Building lobby, 1 min walk west on de Maisonneuve",
 	"LB Building": "GM Building ground floor, 2 min walk south via Guy St",
+	"Library Building": "GM Building ground floor, 2 min walk south via Guy St",
+	"J.W. McConnell Building":
+		"GM Building ground floor, 2 min walk south via Guy St",
 	"GM Building": "LB Building lobby, 2 min walk north via Guy St",
-	"Webster Library": "Hall Building lobby via tunnel level",
+	"Guy-De Maisonneuve Building":
+		"LB Building lobby, 2 min walk north via Guy St",
+	"MB Building": "Hall Building lobby via tunnel level",
+	"John Molson Building": "Hall Building lobby via tunnel level",
 	default: "the nearest staffed building lobby (Hall, EV, or LB)",
 };
 
@@ -80,8 +98,8 @@ function generateSteps(trigger: EmergencyTrigger): EmergencyStep[] {
 
 	// Step 2: move to safety
 	steps.push({
-		instruction: "Move to a safe location",
-		detail: `Head to ${nearestSafe}. Avoid the reported disruption area. Use accessible entrances if needed.`,
+		instruction: "Go to a safe location",
+		detail: `Go to ${nearestSafe}. Avoid the reported disruption area and use an accessible entrance if needed.`,
 	});
 
 	// Step 3: contact help
@@ -92,9 +110,9 @@ function generateSteps(trigger: EmergencyTrigger): EmergencyStep[] {
 
 	// Step 4: wait
 	steps.push({
-		instruction: "Wait for the all-clear",
+		instruction: "Stay in your safe location",
 		detail:
-			"Stay in your safe location. Use the Updates tab to check for new information. Do not return to the affected area until confirmed safe.",
+			"Stay where you are, check the Updates tab for new information, and do not return to the affected area until it is confirmed safe.",
 	});
 
 	return steps;
@@ -119,12 +137,12 @@ function getCategoryStep(
 			};
 		case "access_restriction":
 			return {
-				instruction: "The area is restricted",
+				instruction: "Avoid the restricted area",
 				detail: `Access to ${location} is currently restricted. Do not attempt to enter. Follow posted signs or security instructions.`,
 			};
 		case "construction":
 			return {
-				instruction: "Construction zone — use alternate path",
+				instruction: "Use an alternate path around construction",
 				detail: `${location} has active construction. The area may be unsafe. Use a different route around the obstruction.`,
 			};
 		default:
@@ -136,24 +154,62 @@ function getCategoryStep(
 
 export function EmergencyProvider({ children }: { children: React.ReactNode }) {
 	const [isActive, setIsActive] = useState(false);
+	const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
 	const [trigger, setTrigger] = useState<EmergencyTrigger | null>(null);
 	const [steps, setSteps] = useState<EmergencyStep[]>([]);
 
-	const activate = useCallback((t: EmergencyTrigger) => {
-		setTrigger(t);
-		setSteps(generateSteps(t));
-		setIsActive(true);
+	const updateTrigger = useCallback((nextTrigger: EmergencyTrigger) => {
+		setTrigger(nextTrigger);
+		setSteps(generateSteps(nextTrigger));
+	}, []);
+
+	const activate = useCallback(
+		(t: EmergencyTrigger) => {
+			updateTrigger(t);
+			setIsExitPromptVisible(false);
+			setIsActive(true);
+		},
+		[updateTrigger],
+	);
+
+	const requestExitPrompt = useCallback(() => {
+		setIsExitPromptVisible(true);
+	}, []);
+
+	const dismissExitPrompt = useCallback(() => {
+		setIsExitPromptVisible(false);
 	}, []);
 
 	const deactivate = useCallback(() => {
 		setIsActive(false);
+		setIsExitPromptVisible(false);
 		setTrigger(null);
 		setSteps([]);
 	}, []);
 
 	const value = useMemo(
-		() => ({ isActive, trigger, steps, activate, deactivate }),
-		[isActive, trigger, steps, activate, deactivate],
+		() => ({
+			isActive,
+			isExitPromptVisible,
+			trigger,
+			steps,
+			activate,
+			updateTrigger,
+			requestExitPrompt,
+			dismissExitPrompt,
+			deactivate,
+		}),
+		[
+			isActive,
+			isExitPromptVisible,
+			trigger,
+			steps,
+			activate,
+			updateTrigger,
+			requestExitPrompt,
+			dismissExitPrompt,
+			deactivate,
+		],
 	);
 
 	return (

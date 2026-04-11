@@ -1,9 +1,12 @@
 import { StyleSheet, View } from "react-native";
 import { Button, Modal, Portal, Text } from "react-native-paper";
 import { colors, components, spacing, typography } from "../theme";
+import type { Flare } from "../types";
+import { getRecommendedAction } from "../utils/recommendations";
 
 interface ZonePromptModalProps {
 	visible: boolean;
+	flare: Flare | null;
 	onViewGuidance: () => void;
 	onDismiss: () => void;
 	onRemindLater?: () => void;
@@ -11,10 +14,18 @@ interface ZonePromptModalProps {
 
 export const ZonePromptModal = ({
 	visible,
+	flare,
 	onViewGuidance,
 	onDismiss,
 	onRemindLater,
 }: ZonePromptModalProps) => {
+	if (!flare) return null;
+
+	const recommendation = getRecommendedAction(
+		flare.category,
+		flare.severity ?? "medium",
+	);
+
 	return (
 		<Portal>
 			<Modal
@@ -22,10 +33,21 @@ export const ZonePromptModal = ({
 				onDismiss={onDismiss}
 				contentContainerStyle={styles.container}
 			>
-				<Text style={styles.title}>Approaching affected area</Text>
-				<Text style={styles.body}>
-					A disruption has been reported nearby. Review guidance to stay safe.
-				</Text>
+				<View style={styles.header}>
+					<Text style={styles.title}>Reported issue nearby</Text>
+					{flare.severity === "high" && (
+						<View style={styles.priorityBadge}>
+							<Text style={styles.priorityText}>High Severity</Text>
+						</View>
+					)}
+				</View>
+
+				<Text style={styles.body}>{flare.summary}</Text>
+
+				<View style={styles.recommendationBox}>
+					<Text style={styles.recommendationLabel}>Recommendation:</Text>
+					<Text style={styles.recommendationText}>{recommendation}</Text>
+				</View>
 
 				<View style={styles.actions}>
 					<Button
@@ -37,7 +59,7 @@ export const ZonePromptModal = ({
 						contentStyle={styles.buttonContent}
 						style={styles.button}
 					>
-						View guidance
+						View details
 					</Button>
 					<Button
 						mode="outlined"
@@ -73,18 +95,55 @@ const styles = StyleSheet.create({
 		marginHorizontal: spacing.lg,
 		gap: spacing.md,
 	},
+	header: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "flex-start",
+	},
 	title: {
-		fontSize: typography.h1.fontSize,
-		fontWeight: typography.h1.fontWeight,
+		fontSize: typography.h2.fontSize,
+		fontWeight: typography.h2.fontWeight,
 		color: colors.textPrimary,
+		flex: 1,
+	},
+	priorityBadge: {
+		backgroundColor: `${colors.burgundy}15`,
+		paddingHorizontal: spacing.sm,
+		paddingVertical: 2,
+		borderRadius: 4,
+	},
+	priorityText: {
+		fontSize: 10,
+		fontWeight: "700",
+		color: colors.burgundy,
+		textTransform: "uppercase",
 	},
 	body: {
 		fontSize: typography.body.fontSize,
 		color: colors.textSecondary,
 		lineHeight: 20,
 	},
+	recommendationBox: {
+		backgroundColor: colors.background,
+		padding: spacing.md,
+		borderRadius: spacing.sm,
+		borderLeftWidth: 3,
+		borderLeftColor: colors.burgundy,
+	},
+	recommendationLabel: {
+		fontSize: 11,
+		fontWeight: "700",
+		color: colors.textSecondary,
+		textTransform: "uppercase",
+		marginBottom: 4,
+	},
+	recommendationText: {
+		fontSize: typography.body.fontSize,
+		fontWeight: "600",
+		color: colors.textPrimary,
+	},
 	actions: {
-		gap: spacing.md,
+		gap: spacing.sm,
 		marginTop: spacing.sm,
 	},
 	button: {

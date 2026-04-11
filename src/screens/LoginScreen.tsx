@@ -1,9 +1,17 @@
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import {
+	KeyboardAvoidingView,
+	Platform,
+	ScrollView,
+	StyleSheet,
+	View,
+} from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LoginScreenNavProp } from "../navigation/types";
+import { AppSessionService } from "../services/AppSessionService";
+import { AuthService } from "../services/AuthService";
 import { colors, components, spacing, typography } from "../theme";
 
 interface LoginScreenProps {
@@ -17,111 +25,177 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [emailError, setEmailError] = useState("");
+	const [formError, setFormError] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const validateEmail = (value: string) => {
-		if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-			setEmailError("Enter a valid email.");
+		if (
+			value &&
+			!/^[^\s@]+@(concordia\.ca|live\.concordia\.ca|mail\.concordia\.ca)$/i.test(
+				value,
+			)
+		) {
+			setEmailError("Must use a valid Concordia email address.");
 		} else {
 			setEmailError("");
 		}
 	};
 
-	const isFormValid = !!email && !emailError && !!password;
+	const isFormValid = !!email.trim() && !emailError && !!password;
 
-	const handleLogin = () => {
-		if (!isFormValid) return;
-		// Existing users skip onboarding
-		onLogin?.();
+	const handleLogin = async () => {
+		if (isSubmitting) return;
+		if (!email.trim() || !password.trim()) {
+			setFormError("Enter your email and password to continue.");
+			return;
+		}
+		if (!isFormValid) {
+			setFormError("Please fix the errors above.");
+			return;
+		}
+
+		setFormError("");
+		setIsSubmitting(true);
+
+		try {
+			await AuthService.login(email, password);
+			await AppSessionService.saveSession({
+				userEmail: email,
+				accessMode: "account",
+			});
+			await Promise.resolve(onLogin?.());
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Couldn't log you in right now. Try again.",
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
-		<View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
-			<Button
-				mode="text"
-				onPress={() => navigation.goBack()}
-				textColor={colors.burgundy}
-				labelStyle={styles.backLabel}
-				contentStyle={styles.backContent}
-				style={styles.backButton}
-				icon="arrow-left"
+		<KeyboardAvoidingView
+			style={styles.container}
+			behavior={Platform.OS === "ios" ? "padding" : undefined}
+		>
+			<ScrollView
+				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode="on-drag"
+				contentContainerStyle={[
+					styles.content,
+					{
+						paddingTop: insets.top + spacing.lg,
+						paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.lg,
+					},
+				]}
 			>
-				Back
-			</Button>
-
-			<Text style={styles.title}>Login</Text>
-
-			{/* Form → CTA → cross-link: single top-to-bottom flow */}
-			<View style={styles.form}>
-				<TextInput
-					mode="outlined"
-					label="Email"
-					value={email}
-					onChangeText={(v) => {
-						setEmail(v);
-						validateEmail(v);
-					}}
-					keyboardType="email-address"
-					autoCapitalize="none"
-					style={styles.input}
-					outlineColor={colors.border}
-					activeOutlineColor={colors.burgundy}
-				/>
-				{!!emailError && (
-					<HelperText type="error" visible>
-						{emailError}
-					</HelperText>
-				)}
-
-				<TextInput
-					mode="outlined"
-					label="Password"
-					value={password}
-					onChangeText={setPassword}
-					secureTextEntry
-					style={styles.input}
-					outlineColor={colors.border}
-					activeOutlineColor={colors.burgundy}
-				/>
-
-				{/* Primary CTA — immediately after last input */}
-				<Button
-					mode="contained"
-					onPress={handleLogin}
-					buttonColor={isFormValid ? colors.burgundy : "#C4A0B0"}
-					textColor="#FFFFFF"
-					labelStyle={styles.buttonLabel}
-					contentStyle={styles.buttonContent}
-					style={styles.primaryButton}
-				>
-					Login
-				</Button>
-
-				{/* Forgot password */}
 				<Button
 					mode="text"
-					onPress={() => navigation.navigate("ForgotPassword")}
-					textColor={colors.textSecondary}
-					labelStyle={styles.forgotLabel}
-					compact
+					onPress={() => navigation.goBack()}
+					textColor={colors.burgundy}
+					labelStyle={styles.backLabel}
+					contentStyle={styles.backContent}
+					style={styles.backButton}
+					icon="arrow-left"
+					disabled={isSubmitting}
 				>
-					Forgot password?
+					Back
 				</Button>
 
-				{/* Auth-switch — secondary action right below CTA */}
-				<View style={styles.crossLink}>
-					<Text style={styles.crossLinkText}>Don't have an account?</Text>
+				<Text style={styles.title}>Login</Text>
+
+				<View style={styles.form}>
+					<TextInput
+						mode="outlined"
+						label="Email"
+						value={email}
+						onChangeText={(v) => {
+							setEmail(v);
+							validateEmail(v);
+							if (formError) setFormError("");
+						}}
+						keyboardType="email-address"
+						autoCapitalize="none"
+						autoCorrect={false}
+						autoComplete="email"
+						textContentType="emailAddress"
+						style={styles.input}
+						outlineColor={colors.border}
+						activeOutlineColor={colors.burgundy}
+						error={!!emailError}
+						editable={!isSubmitting}
+					/>
+					{!!emailError && <HelperText type="error">{emailError}</HelperText>}
+
+					<TextInput
+						mode="outlined"
+						label="Password"
+						value={password}
+						onChangeText={(value) => {
+							setPassword(value);
+							if (formError) setFormError("");
+						}}
+						secureTextEntry
+						autoCapitalize="none"
+						autoCorrect={false}
+						autoComplete="password"
+						textContentType="password"
+						returnKeyType="done"
+						onSubmitEditing={() => void handleLogin()}
+						style={styles.input}
+						outlineColor={colors.border}
+						activeOutlineColor={colors.burgundy}
+						editable={!isSubmitting}
+					/>
+					{!!formError && (
+						<HelperText type="error" style={styles.formHelper}>
+							{formError}
+						</HelperText>
+					)}
+
+					<Button
+						mode="contained"
+						onPress={() => void handleLogin()}
+						buttonColor={colors.burgundy}
+						textColor="#FFFFFF"
+						labelStyle={styles.buttonLabel}
+						contentStyle={styles.buttonContent}
+						style={styles.primaryButton}
+						disabled={!isFormValid || isSubmitting}
+						loading={isSubmitting}
+					>
+						Login
+					</Button>
+
 					<Button
 						mode="text"
-						onPress={() => navigation.navigate("CreateAccount")}
-						textColor={colors.burgundy}
-						labelStyle={styles.crossLinkLabel}
+						onPress={() => navigation.navigate("ForgotPassword")}
+						textColor={colors.textSecondary}
+						labelStyle={styles.forgotLabel}
 						compact
+						disabled={isSubmitting}
 					>
-						Create account
+						Forgot password?
 					</Button>
+
+					<View style={styles.crossLink}>
+						<Text style={styles.crossLinkText}>Don't have an account?</Text>
+						<Button
+							mode="text"
+							onPress={() => navigation.navigate("CreateAccount")}
+							textColor={colors.burgundy}
+							labelStyle={styles.crossLinkLabel}
+							compact
+							disabled={isSubmitting}
+						>
+							Create account
+						</Button>
+					</View>
 				</View>
-			</View>
-		</View>
+			</ScrollView>
+		</KeyboardAvoidingView>
 	);
 };
 
@@ -129,6 +203,9 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: colors.background,
+	},
+	content: {
+		flexGrow: 1,
 		paddingHorizontal: components.screenPaddingH,
 	},
 	backButton: {
@@ -150,6 +227,9 @@ const styles = StyleSheet.create({
 	},
 	form: {
 		gap: spacing.sm,
+	},
+	formHelper: {
+		marginTop: -spacing.xs,
 	},
 	input: {
 		backgroundColor: colors.surface,

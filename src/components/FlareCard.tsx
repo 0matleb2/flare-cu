@@ -37,7 +37,7 @@ export const FlareCard = ({ flare, onPress, lowStim }: FlareCardProps) => {
 			</View>
 
 			{/* Summary */}
-			<Text style={styles.summary} numberOfLines={2}>
+			<Text style={styles.summary} numberOfLines={lowStim ? 1 : 2}>
 				{flare.summary}
 			</Text>
 
@@ -46,7 +46,9 @@ export const FlareCard = ({ flare, onPress, lowStim }: FlareCardProps) => {
 				<Text style={styles.location} numberOfLines={1}>
 					{flare.location}
 				</Text>
-				<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
+				{!lowStim && (
+					<Text style={styles.timestamp}>{timeAgo(flare.lastUpdated)}</Text>
+				)}
 			</View>
 		</TouchableOpacity>
 	);
